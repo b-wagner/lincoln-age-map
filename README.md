@@ -98,6 +98,13 @@ python3 tools/build.py
 Keep the regenerated `index.html` alongside the source changes. Rebuilding
 packages the existing snapshot; it does not fetch updated GIS records.
 
+To run the map-state regression checks with Node.js 18 or newer (no packages
+required):
+
+```sh
+node --test tests/map-state.test.cjs
+```
+
 ## Privacy
 
 The bundle contains geographic shapes, street names, aggregated residential

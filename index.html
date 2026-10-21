@@ -1833,6 +1833,7 @@ const saved=window.openai?.widgetState;
 const years=d3.range(1860,2030,10),colors=years.map((_,i)=&gt;`color-mix(in srgb, ${d3.interpolateTurbo(.03+i/16*.94)} 88%, var(--foreground))`);
 let decade=years.includes(saved?.modelContent?.decade)?saved.modelContent.decade:null,chosen=saved?.modelContent?.historicBuilding??null;
 let areaOn=saved?.modelContent?.areaAge!==false,detailOn=saved?.modelContent?.parcelDetail!==false;
+let inspectedSummary=null;
 let width,height,projection,geo,pathCells,areaLayer,markerLayer,labelLayer,scaleLayer,mapLayer,streetLines=[],current=d3.zoomIdentity,frame=0,initialized=false;
 const counts=years.map(y=&gt;data.historic.features.filter(f=&gt;Math.floor(f.properties.year/10)*10===y).length),total=d3.sum(data.counts);
 for(const f of data.boundary.features){const ps=f.geometry.type===&#x27;Polygon&#x27;?[f.geometry.coordinates]:f.geometry.coordinates;for(const rs of ps)for(let i=0;i&lt;rs.length;i++){const r=rs[i],a=d3.sum(r.slice(1).map((v,j)=&gt;r[j][0]*v[1]-v[0]*r[j][1]));if((i===0&amp;&amp;a&gt;0)||(i&gt;0&amp;&amp;a&lt;0))r.reverse();}}
@@ -1847,8 +1848,20 @@ const areaShapes=years.map((year,index)=&gt;{
  }));return {type:&#x27;Feature&#x27;,properties:{index,year},geometry:{type:&#x27;MultiPolygon&#x27;,coordinates}};
 }).filter(f=&gt;f.geometry.coordinates.length);
 function areaAt(point){const i=Math.round((point[0]-area.lon)/area.dx),j=Math.round((point[1]-area.lat)/area.dy);if(i&lt;0||j&lt;0||i&gt;=area.nx||j&gt;=area.ny)return null;const a=area.values[j*area.nx+i];return a[0]&lt;0?null:{decade:years[a[0]],n:a[1]};}
-function save(){window.openai?.setWidgetState({modelContent:{decade,historicBuilding:chosen,areaAge:areaOn,parcelDetail:detailOn},privateContent:{zoom:{k:current.k,x:current.x/width,y:current.y/height}}}).catch(()=&gt;{});}
+function save(){window.openai?.setWidgetState({modelContent:{decade,historicBuilding:chosen,areaAge:areaOn,parcelDetail:detailOn},privateContent:{zoom:{k:current.k,center:projection.invert(current.invert([width/2,height/2]))}}}).catch(()=&gt;{});}
+function restoreZoom(z){
+if(!Number.isFinite(z?.k))return d3.zoomIdentity;
+const k=Math.max(1,Math.min(80,z.k));
+if(Array.isArray(z.center)&amp;&amp;z.center.length===2&amp;&amp;z.center.every(Number.isFinite)&amp;&amp;Math.abs(z.center[0])&lt;=180&amp;&amp;Math.abs(z.center[1])&lt;90){
+const xy=projection(z.center);return d3.zoomIdentity.translate(width/2-k*xy[0],height/2-k*xy[1]).scale(k);
+}
+// Retain views saved before geographic centers were stored.
+if(Number.isFinite(z.x)&amp;&amp;Number.isFinite(z.y))return d3.zoomIdentity.translate(z.x*width,z.y*height).scale(k);
+return d3.zoomIdentity;
+}
+function inspect(text){inspectedSummary=text;chosen=null;picker.value=&#x27;&#x27;;summary();updateFrame();save();}
 function summary(){
+if(inspectedSummary!==null){selection.textContent=inspectedSummary;return;}
 const f=data.historic.features.find(f=&gt;f.properties.id===chosen);
 if(f){const a=f.properties;selection.textContent=`${a.name} · ${a.date} · ${a.designation}. Historic preservation record; color uses the earliest listed year.`;return;}
 selection.textContent=decade===null?`Area age: median residential construction decade within 600 m, using at least 20 records. Parcel detail: most common decade in each 120 m area.`:`${decade}s · ${data.counts[(decade-1860)/10].toLocaleString()} residential parcels · ${counts[(decade-1860)/10]} historic buildings. Records may overlap.`;
@@ -1860,10 +1873,10 @@ pathCells?.attr(&#x27;display&#x27;,detailOn?null:&#x27;none&#x27;);
 markerLayer?.selectAll(&#x27;circle&#x27;).attr(&#x27;fill&#x27;,f=&gt;colors[(Math.floor(f.properties.year/10)*10-1860)/10]).attr(&#x27;opacity&#x27;,f=&gt;decade===null||Math.floor(f.properties.year/10)*10===decade?1:.08);
 root.querySelectorAll(&#x27;.legend button&#x27;).forEach((b,i)=&gt;b.setAttribute(&#x27;aria-pressed&#x27;,String(years[i]===decade)));summary();
 }
-years.forEach((y,i)=&gt;{const b=document.createElement(&#x27;button&#x27;);b.type=&#x27;button&#x27;;b.className=&#x27;cursor-interaction&#x27;;b.setAttribute(&#x27;aria-pressed&#x27;,String(decade===y));b.setAttribute(&#x27;aria-label&#x27;,`${y}s: highlight construction decade`);const sw=document.createElement(&#x27;span&#x27;);sw.className=&#x27;swatch&#x27;;sw.style.background=colors[i];b.append(sw,`${y}s`);b.onclick=()=&gt;{decade=decade===y?null:y;chosen=null;picker.value=&#x27;&#x27;;colorMap();save();};root.querySelector(&#x27;.legend&#x27;).append(b);});
+years.forEach((y,i)=&gt;{const b=document.createElement(&#x27;button&#x27;);b.type=&#x27;button&#x27;;b.className=&#x27;cursor-interaction&#x27;;b.setAttribute(&#x27;aria-pressed&#x27;,String(decade===y));b.setAttribute(&#x27;aria-label&#x27;,`${y}s: highlight construction decade`);const sw=document.createElement(&#x27;span&#x27;);sw.className=&#x27;swatch&#x27;;sw.style.background=colors[i];b.append(sw,`${y}s`);b.onclick=()=&gt;{decade=decade===y?null:y;chosen=null;inspectedSummary=null;picker.value=&#x27;&#x27;;colorMap();save();};root.querySelector(&#x27;.legend&#x27;).append(b);});
 data.historic.features.slice().sort((a,b)=&gt;a.properties.name.localeCompare(b.properties.name)).forEach(f=&gt;{const o=document.createElement(&#x27;option&#x27;);o.value=String(f.properties.id);o.textContent=`${f.properties.name} · ${f.properties.date}`;picker.append(o);});
 if(chosen!==null)picker.value=String(chosen);
-function setBuilding(f){chosen=f.properties.id;picker.value=String(chosen);summary();updateFrame();save();}
+function setBuilding(f){inspectedSummary=null;chosen=f.properties.id;picker.value=String(chosen);summary();updateFrame();save();}
 function tooltip(event,text){tip.textContent=text;tip.style.display=&#x27;block&#x27;;const xy=d3.pointer(event,stage);tip.style.left=Math.max(8,Math.min(width-tip.offsetWidth-8,xy[0]+12))+&#x27;px&#x27;;tip.style.top=Math.max(0,xy[1]-tip.offsetHeight-12)+&#x27;px&#x27;;}
 function labelRoads(){
 const k=current.k,candidates=[];
@@ -1910,8 +1923,8 @@ svg.select(&#x27;defs&#x27;).append(&#x27;clipPath&#x27;).attr(&#x27;id&#x27;,&#
 const viewport=svg.append(&#x27;g&#x27;).attr(&#x27;clip-path&#x27;,&#x27;url(#lincoln-viewport)&#x27;);mapLayer=viewport.append(&#x27;g&#x27;).attr(&#x27;class&#x27;,&#x27;map-geography&#x27;);
 mapLayer.append(&#x27;path&#x27;).attr(&#x27;d&#x27;,geo(data.boundary)).attr(&#x27;fill&#x27;,&#x27;var(--muted)&#x27;).attr(&#x27;fill-opacity&#x27;,.42).attr(&#x27;stroke&#x27;,&#x27;var(--border)&#x27;).attr(&#x27;vector-effect&#x27;,&#x27;non-scaling-stroke&#x27;);
 areaLayer=mapLayer.append(&#x27;g&#x27;).attr(&#x27;class&#x27;,&#x27;area-age&#x27;).attr(&#x27;clip-path&#x27;,&#x27;url(#lincoln-city-age-clip)&#x27;);
-areaLayer.selectAll(&#x27;path&#x27;).data(areaShapes).join(&#x27;path&#x27;).attr(&#x27;d&#x27;,geo).on(&#x27;pointermove&#x27;,(event,f)=&gt;{const point=projection.invert(current.invert(d3.pointer(event,svg.node()))),a=areaAt(point);if(a)tooltip(event,`Typical nearby construction: ${a.decade}s · Median of ${a.n.toLocaleString()} residential records within 600 m`);}).on(&#x27;pointerleave&#x27;,()=&gt;tip.style.display=&#x27;none&#x27;).on(&#x27;click&#x27;,(event,f)=&gt;{selection.textContent=`Typical nearby construction: ${f.properties.year}s. Median residential decade within 600 m; approximate area pattern.`;});
-pathCells=mapLayer.append(&#x27;g&#x27;).attr(&#x27;class&#x27;,&#x27;parcel-detail&#x27;).selectAll(&#x27;path&#x27;).data(data.cells).join(&#x27;path&#x27;).attr(&#x27;d&#x27;,d=&gt;{const a=projection([d[0],d[1]]),b=projection([d[0]+data.dx,d[1]+data.dy]);return `M${a[0]},${a[1]}H${b[0]}V${b[1]}H${a[0]}Z`;}).on(&#x27;pointermove&#x27;,(event,d)=&gt;{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);tooltip(event,`${d[3]} dated residential parcels · Most common: ${years[d[2]]}s${a?` · Nearby median: ${a.decade}s`:&#x27;&#x27;}`);}).on(&#x27;pointerleave&#x27;,()=&gt;tip.style.display=&#x27;none&#x27;).on(&#x27;click&#x27;,(event,d)=&gt;{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);selection.textContent=`120 m area: ${d[3]} dated residential parcels; most common ${years[d[2]]}s.${a?` Surrounding 600 m: median ${a.decade}s (${a.n.toLocaleString()} records).`:&#x27;&#x27;}`;});
+areaLayer.selectAll(&#x27;path&#x27;).data(areaShapes).join(&#x27;path&#x27;).attr(&#x27;d&#x27;,geo).on(&#x27;pointermove&#x27;,(event,f)=&gt;{const point=projection.invert(current.invert(d3.pointer(event,svg.node()))),a=areaAt(point);if(a)tooltip(event,`Typical nearby construction: ${a.decade}s · Median of ${a.n.toLocaleString()} residential records within 600 m`);}).on(&#x27;pointerleave&#x27;,()=&gt;tip.style.display=&#x27;none&#x27;).on(&#x27;click&#x27;,(event,f)=&gt;{inspect(`Typical nearby construction: ${f.properties.year}s. Median residential decade within 600 m; approximate area pattern.`);});
+pathCells=mapLayer.append(&#x27;g&#x27;).attr(&#x27;class&#x27;,&#x27;parcel-detail&#x27;).selectAll(&#x27;path&#x27;).data(data.cells).join(&#x27;path&#x27;).attr(&#x27;d&#x27;,d=&gt;{const a=projection([d[0],d[1]]),b=projection([d[0]+data.dx,d[1]+data.dy]);return `M${a[0]},${a[1]}H${b[0]}V${b[1]}H${a[0]}Z`;}).on(&#x27;pointermove&#x27;,(event,d)=&gt;{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);tooltip(event,`${d[3]} dated residential parcels · Most common: ${years[d[2]]}s${a?` · Nearby median: ${a.decade}s`:&#x27;&#x27;}`);}).on(&#x27;pointerleave&#x27;,()=&gt;tip.style.display=&#x27;none&#x27;).on(&#x27;click&#x27;,(event,d)=&gt;{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);inspect(`120 m area: ${d[3]} dated residential parcels; most common ${years[d[2]]}s.${a?` Surrounding 600 m: median ${a.decade}s (${a.n.toLocaleString()} records).`:&#x27;&#x27;}`);});
 for(const local of [true,false])mapLayer.append(&#x27;path&#x27;).attr(&#x27;class&#x27;,local?&#x27;local-roads&#x27;:&#x27;major-roads&#x27;).attr(&#x27;d&#x27;,geo({type:&#x27;FeatureCollection&#x27;,features:streets.filter(f=&gt;(f.properties.type&gt;40)===local)})).attr(&#x27;fill&#x27;,&#x27;none&#x27;).attr(&#x27;stroke&#x27;,&#x27;var(--foreground)&#x27;).attr(&#x27;stroke-opacity&#x27;,local?.28:.4).attr(&#x27;stroke-width&#x27;,local?.6:.8).attr(&#x27;vector-effect&#x27;,&#x27;non-scaling-stroke&#x27;).attr(&#x27;pointer-events&#x27;,&#x27;none&#x27;);
 streetLines=streets.filter(f=&gt;f.properties.name).map(f=&gt;({name:f.properties.name,type:f.properties.type,pts:f.geometry.coordinates.map(projection)}));
 markerLayer=viewport.append(&#x27;g&#x27;).attr(&#x27;class&#x27;,&#x27;historic-markers&#x27;);markerLayer.selectAll(&#x27;circle&#x27;).data(data.historic.features).join(&#x27;circle&#x27;).attr(&#x27;stroke&#x27;,&#x27;var(--foreground)&#x27;).attr(&#x27;class&#x27;,&#x27;cursor-interaction&#x27;).on(&#x27;pointermove&#x27;,(event,f)=&gt;tooltip(event,`${f.properties.name} · ${f.properties.date} · Historic preservation`)).on(&#x27;pointerleave&#x27;,()=&gt;tip.style.display=&#x27;none&#x27;).on(&#x27;click&#x27;,(event,f)=&gt;setBuilding(f));
@@ -1920,7 +1933,7 @@ scaleLayer=svg.append(&#x27;g&#x27;).attr(&#x27;pointer-events&#x27;,&#x27;none&
 svg.append(&#x27;text&#x27;).attr(&#x27;x&#x27;,width-16).attr(&#x27;y&#x27;,22).attr(&#x27;text-anchor&#x27;,&#x27;end&#x27;).attr(&#x27;pointer-events&#x27;,&#x27;none&#x27;).text(&#x27;N ↑&#x27;);
 zoom.extent([[0,0],[width,height]]).translateExtent([[-width*.12,-height*.12],[width*1.12,height*1.12]]);svg.call(zoom);
 if(prev){const xy=projection(prev);current=d3.zoomIdentity.translate(width/2-oldk*xy[0],height/2-oldk*xy[1]).scale(oldk);}
-else if(saved?.privateContent?.zoom){const z=saved.privateContent.zoom;if(Number.isFinite(z.k)&amp;&amp;Number.isFinite(z.x)&amp;&amp;Number.isFinite(z.y))current=d3.zoomIdentity.translate(z.x*width,z.y*height).scale(Math.max(1,Math.min(80,z.k)));}
+else if(saved?.privateContent?.zoom){current=restoreZoom(saved.privateContent.zoom);}
 svg.call(zoom.transform,current);colorMap();updateFrame();initialized=true;
 }
 root.querySelector(&#x27;[data-zoom=&quot;in&quot;]&#x27;).onclick=()=&gt;{svg.call(zoom.scaleBy,1.6);updateFrame();save();};
@@ -1931,12 +1944,12 @@ const anchors=data.historic.features.filter(f=&gt;[1,13,14,23,65,66,106].include
 const x=d3.extent(anchors,p=&gt;p[0]),y=d3.extent(anchors,p=&gt;p[1]),k=Math.min(60,.75*Math.min(width/(x[1]-x[0]),height/(y[1]-y[0]))),cx=(x[0]+x[1])/2,cy=(y[0]+y[1])/2;
 svg.call(zoom.transform,d3.zoomIdentity.translate(width/2-k*cx,height/2-k*cy).scale(k));updateFrame();save();
 };
-picker.onchange=()=&gt;{const f=data.historic.features.find(f=&gt;String(f.properties.id)===picker.value);if(f){setBuilding(f);goToPoint(f.geometry.coordinates,Math.max(12,current.k));}else{chosen=null;summary();updateFrame();save();}};
+picker.onchange=()=&gt;{const f=data.historic.features.find(f=&gt;String(f.properties.id)===picker.value);if(f){setBuilding(f);goToPoint(f.geometry.coordinates,Math.max(12,current.k));}else{inspectedSummary=null;chosen=null;summary();updateFrame();save();}};
 const areaToggle=root.querySelector(&#x27;#lincoln-area-toggle&#x27;),detailToggle=root.querySelector(&#x27;#lincoln-detail-toggle&#x27;);
 areaToggle.checked=areaOn;detailToggle.checked=detailOn;
 areaToggle.onchange=()=&gt;{areaOn=areaToggle.checked;colorMap();updateFrame();save();};
 detailToggle.onchange=()=&gt;{detailOn=detailToggle.checked;colorMap();save();};
-window.addEventListener(&#x27;openai:set_globals&#x27;,event=&gt;{const state=event.detail?.globals?.widgetState;if(!state)return;decade=years.includes(state.modelContent?.decade)?state.modelContent.decade:null;chosen=state.modelContent?.historicBuilding??null;areaOn=state.modelContent?.areaAge!==false;detailOn=state.modelContent?.parcelDetail!==false;areaToggle.checked=areaOn;detailToggle.checked=detailOn;picker.value=chosen===null?&#x27;&#x27;:String(chosen);colorMap();updateFrame();});
+window.addEventListener(&#x27;openai:set_globals&#x27;,event=&gt;{const state=event.detail?.globals?.widgetState;if(!state)return;const nextDecade=years.includes(state.modelContent?.decade)?state.modelContent.decade:null,nextChosen=state.modelContent?.historicBuilding??null;if(nextDecade!==decade||nextChosen!==chosen)inspectedSummary=null;decade=nextDecade;chosen=nextChosen;areaOn=state.modelContent?.areaAge!==false;detailOn=state.modelContent?.parcelDetail!==false;areaToggle.checked=areaOn;detailToggle.checked=detailOn;picker.value=chosen===null?&#x27;&#x27;:String(chosen);colorMap();updateFrame();});
 new ResizeObserver(draw).observe(stage);
 }catch(error){root.querySelector(&#x27;.selection&#x27;).textContent=&#x27;The map could not load. Please reopen it.&#x27;;console.error(error);}
 })();

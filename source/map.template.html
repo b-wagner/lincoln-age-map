@@ -1,0 +1,155 @@
+<div id="lincoln-ages">
+<style>
+#lincoln-ages .map-stage{position:relative;width:100%;overflow:hidden}
+#lincoln-ages .map-stage svg{display:block;width:100%;touch-action:none;cursor:grab}
+#lincoln-ages .map-stage svg:active{cursor:grabbing}
+#lincoln-ages .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px 10px;margin:12px 0}
+#lincoln-ages .legend button{display:flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--foreground);font:inherit;padding:4px 0;text-align:left}
+#lincoln-ages .legend button[aria-pressed="true"]{text-decoration:underline;text-underline-offset:4px}
+#lincoln-ages .swatch{width:16px;height:12px;flex-shrink:0}
+#lincoln-ages .selection{min-height:44px;margin-top:12px}
+#lincoln-ages text{fill:var(--foreground);font-size:12px;font-weight:400;paint-order:stroke;stroke:var(--background);stroke-width:3px;stroke-linejoin:round}
+#lincoln-ages .map-tip{display:none;position:absolute;max-width:260px;pointer-events:none;padding:8px 10px;background:var(--popover);color:var(--popover-foreground);border:1px solid var(--border);z-index:2}
+#lincoln-ages .historic-picker{max-width:100%}
+</style>
+<h2>Lincoln · building ages</h2>
+<div class="text-small text-muted">Broad colors: typical area age · Squares: parcel-based detail · Circles: historic buildings</div>
+<div class="viz-controls" aria-label="Map navigation">
+<button type="button" class="btn" data-zoom="in" aria-label="Zoom in">+</button>
+<button type="button" class="btn" data-zoom="out" aria-label="Zoom out">−</button>
+<button type="button" class="btn" data-view="city">Citywide</button>
+<button type="button" class="btn" data-view="downtown">Downtown</button>
+<span class="zoom-level text-small tabular-nums" aria-live="polite">1×</span>
+</div>
+<div class="viz-controls" aria-label="Age layers">
+<label class="form-check"><input type="checkbox" class="form-check-input" id="lincoln-area-toggle" checked><span class="form-check-label">Area age · median within 600 m</span></label>
+<label class="form-check"><input type="checkbox" class="form-check-input" id="lincoln-detail-toggle" checked><span class="form-check-label">Parcel detail · 120 m areas</span></label>
+</div>
+<div class="text-small text-muted">Scroll or pinch to zoom · Drag to pan · Street names appear as you zoom in</div>
+<div class="map-stage"><svg role="img" aria-label="Zoomable map of Lincoln showing residential construction decades, historic buildings, and street names."></svg><div class="map-tip" role="tooltip"></div></div>
+<div class="legend" aria-label="Construction decade"></div>
+<label class="form-label">Historic building<select class="form-select historic-picker"><option value="">Choose a historic building…</option></select></label>
+<div class="selection text-small" aria-live="polite">Loading map…</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script type="application/octet-stream" id="lincoln-map-payload">PAYLOAD_PLACEHOLDER</script>
+<script>
+(async()=>{
+const root=document.getElementById('lincoln-ages');
+try{
+const raw=Uint8Array.from(atob(document.getElementById('lincoln-map-payload').textContent.trim()),c=>c.charCodeAt(0));
+const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));
+const data=JSON.parse(await new Response(stream).text());
+const svg=d3.select(root.querySelector('svg')),stage=root.querySelector('.map-stage'),tip=root.querySelector('.map-tip'),selection=root.querySelector('.selection'),picker=root.querySelector('.historic-picker');
+const saved=window.openai?.widgetState;
+const years=d3.range(1860,2030,10),colors=years.map((_,i)=>`color-mix(in srgb, ${d3.interpolateTurbo(.03+i/16*.94)} 88%, var(--foreground))`);
+let decade=years.includes(saved?.modelContent?.decade)?saved.modelContent.decade:null,chosen=saved?.modelContent?.historicBuilding??null;
+let areaOn=saved?.modelContent?.areaAge!==false,detailOn=saved?.modelContent?.parcelDetail!==false;
+let width,height,projection,geo,pathCells,areaLayer,markerLayer,labelLayer,scaleLayer,mapLayer,streetLines=[],current=d3.zoomIdentity,frame=0,initialized=false;
+const counts=years.map(y=>data.historic.features.filter(f=>Math.floor(f.properties.year/10)*10===y).length),total=d3.sum(data.counts);
+for(const f of data.boundary.features){const ps=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;for(const rs of ps)for(let i=0;i<rs.length;i++){const r=rs[i],a=d3.sum(r.slice(1).map((v,j)=>r[j][0]*v[1]-v[0]*r[j][1]));if((i===0&&a>0)||(i>0&&a<0))r.reverse();}}
+const streets=data.streets.map(r=>({type:'Feature',properties:{name:r[0],type:r[1]},geometry:{type:'LineString',coordinates:r[2].map(pt=>[pt[0]/1e5,pt[1]/1e5])}}));
+const area=data.area;
+const areaShapes=years.map((year,index)=>{
+ const contour=d3.contours().size([area.nx,area.ny]).thresholds([.5])(area.values.map(v=>v[0]===index?1:0))[0];
+ const coordinates=contour.coordinates.map(poly=>poly.map((ring,i)=>{
+  const r=ring.map(([x,y])=>[area.lon+(x-.5)*area.dx,area.lat+(y-.5)*area.dy]);
+  const signed=d3.sum(r.slice(1).map((v,j)=>r[j][0]*v[1]-v[0]*r[j][1]));
+  if((i===0&&signed>0)||(i>0&&signed<0))r.reverse();return r;
+ }));return {type:'Feature',properties:{index,year},geometry:{type:'MultiPolygon',coordinates}};
+}).filter(f=>f.geometry.coordinates.length);
+function areaAt(point){const i=Math.round((point[0]-area.lon)/area.dx),j=Math.round((point[1]-area.lat)/area.dy);if(i<0||j<0||i>=area.nx||j>=area.ny)return null;const a=area.values[j*area.nx+i];return a[0]<0?null:{decade:years[a[0]],n:a[1]};}
+function save(){window.openai?.setWidgetState({modelContent:{decade,historicBuilding:chosen,areaAge:areaOn,parcelDetail:detailOn},privateContent:{zoom:{k:current.k,x:current.x/width,y:current.y/height}}}).catch(()=>{});}
+function summary(){
+const f=data.historic.features.find(f=>f.properties.id===chosen);
+if(f){const a=f.properties;selection.textContent=`${a.name} · ${a.date} · ${a.designation}. Historic preservation record; color uses the earliest listed year.`;return;}
+selection.textContent=decade===null?`Area age: median residential construction decade within 600 m, using at least 20 records. Parcel detail: most common decade in each 120 m area.`:`${decade}s · ${data.counts[(decade-1860)/10].toLocaleString()} residential parcels · ${counts[(decade-1860)/10]} historic buildings. Records may overlap.`;
+}
+function colorMap(){
+pathCells?.attr('fill',d=>colors[decade===null?d[2]:(decade-1860)/10]).attr('opacity',d=>decade===null?.85:(d[4].some((v,j)=>j%2===0&&v===(decade-1860)/10)?.95:.045));
+areaLayer?.attr('display',areaOn?null:'none').selectAll('path').attr('fill',f=>colors[f.properties.index]).attr('fill-opacity',f=>decade===null||f.properties.year===decade?.52:.035);
+pathCells?.attr('display',detailOn?null:'none');
+markerLayer?.selectAll('circle').attr('fill',f=>colors[(Math.floor(f.properties.year/10)*10-1860)/10]).attr('opacity',f=>decade===null||Math.floor(f.properties.year/10)*10===decade?1:.08);
+root.querySelectorAll('.legend button').forEach((b,i)=>b.setAttribute('aria-pressed',String(years[i]===decade)));summary();
+}
+years.forEach((y,i)=>{const b=document.createElement('button');b.type='button';b.className='cursor-interaction';b.setAttribute('aria-pressed',String(decade===y));b.setAttribute('aria-label',`${y}s: highlight construction decade`);const sw=document.createElement('span');sw.className='swatch';sw.style.background=colors[i];b.append(sw,`${y}s`);b.onclick=()=>{decade=decade===y?null:y;chosen=null;picker.value='';colorMap();save();};root.querySelector('.legend').append(b);});
+data.historic.features.slice().sort((a,b)=>a.properties.name.localeCompare(b.properties.name)).forEach(f=>{const o=document.createElement('option');o.value=String(f.properties.id);o.textContent=`${f.properties.name} · ${f.properties.date}`;picker.append(o);});
+if(chosen!==null)picker.value=String(chosen);
+function setBuilding(f){chosen=f.properties.id;picker.value=String(chosen);summary();updateFrame();save();}
+function tooltip(event,text){tip.textContent=text;tip.style.display='block';const xy=d3.pointer(event,stage);tip.style.left=Math.max(8,Math.min(width-tip.offsetWidth-8,xy[0]+12))+'px';tip.style.top=Math.max(0,xy[1]-tip.offsetHeight-12)+'px';}
+function labelRoads(){
+const k=current.k,candidates=[];
+for(const s of streetLines){
+ if(s.type>40&&k<6)continue;if(s.type<=40&&k<1.7)continue;
+ const pts=s.pts.map(p=>current.apply(p));let length=0;for(let i=1;i<pts.length;i++)length+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+ const textWidth=s.name.length*6.6;if(length<textWidth+18)continue;
+ let walked=0,mid=null,angle=0;
+ for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);if(walked+len>=length/2){const t=(length/2-walked)/len;mid=[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];angle=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;break;}walked+=len;}
+ if(!mid||mid[0]<textWidth/2+8||mid[0]>width-textWidth/2-8||mid[1]<32||mid[1]>height-50)continue;
+ if(angle>90)angle-=180;if(angle< -90)angle+=180;
+ candidates.push({name:s.name,type:s.type,mid,angle,length,textWidth});
+}
+candidates.sort((a,b)=>a.type-b.type||b.length-a.length);
+const occupied=[],used=new Map(),labels=[];
+for(const c of candidates){const angle=c.angle*Math.PI/180,bw=Math.abs(Math.cos(angle))*c.textWidth+Math.abs(Math.sin(angle))*14+12,bh=Math.abs(Math.sin(angle))*c.textWidth+Math.abs(Math.cos(angle))*14+12;
+const [x,y]=c.mid,box=[x-bw/2,y-bh/2,x+bw/2,y+bh/2];
+if((used.get(c.name)||[]).some(p=>Math.hypot(x-p[0],y-p[1])<220)||occupied.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1]))continue;
+labels.push(c);occupied.push(box);if(!used.has(c.name))used.set(c.name,[]);used.get(c.name).push(c.mid);
+if(labels.length>(width<500?24:55))break;
+}
+labelLayer.selectAll('text').data(labels).join('text').attr('class','street-name').attr('transform',d=>`translate(${d.mid[0]},${d.mid[1]}) rotate(${d.angle})`).attr('text-anchor','middle').attr('dy','-3').text(d=>d.name);
+}
+function updateFrame(){
+if(!mapLayer)return;mapLayer.attr('transform',current.toString());
+pathCells.attr('transform',d=>{const mid=projection([d[0]+data.dx/2,d[1]+data.dy/2]),factor=areaOn&&current.k<5?.6:.96;return `translate(${mid[0]},${mid[1]}) scale(${factor}) translate(${-mid[0]},${-mid[1]})`;});
+mapLayer.selectAll('.local-roads').attr('visibility',current.k>=4?'visible':'hidden');
+markerLayer.selectAll('circle').attr('cx',f=>current.apply(projection(f.geometry.coordinates))[0]).attr('cy',f=>current.apply(projection(f.geometry.coordinates))[1]).attr('r',f=>f.properties.id===chosen?7:current.k>=5?4.5:3.5).attr('stroke-width',f=>f.properties.id===chosen?2:1);
+labelRoads();
+const center=projection.invert(current.invert([width/2,height/2])),mpp=111320*Math.cos(center[1]*Math.PI/180)*(projection.invert([width/2+1,height/2])[0]-projection.invert([width/2,height/2])[0])/current.k;
+const target=mpp*Math.min(100,width*.22),choices=[20,50,100,200,500,1000,2000,5000,10000],meters=choices.filter(v=>v<=target).pop()||10,len=meters/mpp,sy=height-14;
+scaleLayer.select('path').attr('d',`M18,${sy-5}v5h${len}v-5`);scaleLayer.select('text').attr('x',18+len/2).attr('y',sy-9).text(meters>=1000?`${meters/1000} km`:`${meters} m`);
+root.querySelector('.zoom-level').textContent=`${current.k.toFixed(current.k<10?1:0)}×`;
+}
+const zoom=d3.zoom().scaleExtent([1,80]).on('zoom',event=>{current=event.transform;tip.style.display='none';if(!frame)frame=requestAnimationFrame(()=>{frame=0;updateFrame();});}).on('end',event=>{if(event.sourceEvent)save();});
+function goToPoint(point,k){const xy=projection(point);svg.call(zoom.transform,d3.zoomIdentity.translate(width/2-k*xy[0],height/2-k*xy[1]).scale(k));updateFrame();save();}
+function draw(){
+const w=stage.clientWidth;if(w===width&&initialized)return;
+const prev=initialized?projection.invert(current.invert([width/2,height/2])):null,oldk=current.k;
+width=w;height=Math.max(430,Math.min(670,width*1.04));svg.attr('viewBox',`0 0 ${width} ${height}`).attr('height',height);svg.selectAll('*').remove();
+projection=d3.geoMercator().fitExtent([[14,24],[width-14,height-32]],data.boundary);geo=d3.geoPath(projection);
+svg.append('defs').append('clipPath').attr('id','lincoln-viewport').append('rect').attr('width',width).attr('height',height);
+svg.select('defs').append('clipPath').attr('id','lincoln-city-age-clip').append('path').attr('d',geo(data.boundary));
+const viewport=svg.append('g').attr('clip-path','url(#lincoln-viewport)');mapLayer=viewport.append('g').attr('class','map-geography');
+mapLayer.append('path').attr('d',geo(data.boundary)).attr('fill','var(--muted)').attr('fill-opacity',.42).attr('stroke','var(--border)').attr('vector-effect','non-scaling-stroke');
+areaLayer=mapLayer.append('g').attr('class','area-age').attr('clip-path','url(#lincoln-city-age-clip)');
+areaLayer.selectAll('path').data(areaShapes).join('path').attr('d',geo).on('pointermove',(event,f)=>{const point=projection.invert(current.invert(d3.pointer(event,svg.node()))),a=areaAt(point);if(a)tooltip(event,`Typical nearby construction: ${a.decade}s · Median of ${a.n.toLocaleString()} residential records within 600 m`);}).on('pointerleave',()=>tip.style.display='none').on('click',(event,f)=>{selection.textContent=`Typical nearby construction: ${f.properties.year}s. Median residential decade within 600 m; approximate area pattern.`;});
+pathCells=mapLayer.append('g').attr('class','parcel-detail').selectAll('path').data(data.cells).join('path').attr('d',d=>{const a=projection([d[0],d[1]]),b=projection([d[0]+data.dx,d[1]+data.dy]);return `M${a[0]},${a[1]}H${b[0]}V${b[1]}H${a[0]}Z`;}).on('pointermove',(event,d)=>{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);tooltip(event,`${d[3]} dated residential parcels · Most common: ${years[d[2]]}s${a?` · Nearby median: ${a.decade}s`:''}`);}).on('pointerleave',()=>tip.style.display='none').on('click',(event,d)=>{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);selection.textContent=`120 m area: ${d[3]} dated residential parcels; most common ${years[d[2]]}s.${a?` Surrounding 600 m: median ${a.decade}s (${a.n.toLocaleString()} records).`:''}`;});
+for(const local of [true,false])mapLayer.append('path').attr('class',local?'local-roads':'major-roads').attr('d',geo({type:'FeatureCollection',features:streets.filter(f=>(f.properties.type>40)===local)})).attr('fill','none').attr('stroke','var(--foreground)').attr('stroke-opacity',local?.28:.4).attr('stroke-width',local?.6:.8).attr('vector-effect','non-scaling-stroke').attr('pointer-events','none');
+streetLines=streets.filter(f=>f.properties.name).map(f=>({name:f.properties.name,type:f.properties.type,pts:f.geometry.coordinates.map(projection)}));
+markerLayer=viewport.append('g').attr('class','historic-markers');markerLayer.selectAll('circle').data(data.historic.features).join('circle').attr('stroke','var(--foreground)').attr('class','cursor-interaction').on('pointermove',(event,f)=>tooltip(event,`${f.properties.name} · ${f.properties.date} · Historic preservation`)).on('pointerleave',()=>tip.style.display='none').on('click',(event,f)=>setBuilding(f));
+labelLayer=viewport.append('g').attr('class','street-labels').attr('pointer-events','none');
+scaleLayer=svg.append('g').attr('pointer-events','none');scaleLayer.append('path').attr('fill','none').attr('stroke','var(--foreground)');scaleLayer.append('text').attr('text-anchor','middle');
+svg.append('text').attr('x',width-16).attr('y',22).attr('text-anchor','end').attr('pointer-events','none').text('N ↑');
+zoom.extent([[0,0],[width,height]]).translateExtent([[-width*.12,-height*.12],[width*1.12,height*1.12]]);svg.call(zoom);
+if(prev){const xy=projection(prev);current=d3.zoomIdentity.translate(width/2-oldk*xy[0],height/2-oldk*xy[1]).scale(oldk);}
+else if(saved?.privateContent?.zoom){const z=saved.privateContent.zoom;if(Number.isFinite(z.k)&&Number.isFinite(z.x)&&Number.isFinite(z.y))current=d3.zoomIdentity.translate(z.x*width,z.y*height).scale(Math.max(1,Math.min(80,z.k)));}
+svg.call(zoom.transform,current);colorMap();updateFrame();initialized=true;
+}
+root.querySelector('[data-zoom="in"]').onclick=()=>{svg.call(zoom.scaleBy,1.6);updateFrame();save();};
+root.querySelector('[data-zoom="out"]').onclick=()=>{svg.call(zoom.scaleBy,1/1.6);updateFrame();save();};
+root.querySelector('[data-view="city"]').onclick=()=>{svg.call(zoom.transform,d3.zoomIdentity);updateFrame();save();};
+root.querySelector('[data-view="downtown"]').onclick=()=>{
+const anchors=data.historic.features.filter(f=>[1,13,14,23,65,66,106].includes(f.properties.id)).map(f=>projection(f.geometry.coordinates));
+const x=d3.extent(anchors,p=>p[0]),y=d3.extent(anchors,p=>p[1]),k=Math.min(60,.75*Math.min(width/(x[1]-x[0]),height/(y[1]-y[0]))),cx=(x[0]+x[1])/2,cy=(y[0]+y[1])/2;
+svg.call(zoom.transform,d3.zoomIdentity.translate(width/2-k*cx,height/2-k*cy).scale(k));updateFrame();save();
+};
+picker.onchange=()=>{const f=data.historic.features.find(f=>String(f.properties.id)===picker.value);if(f){setBuilding(f);goToPoint(f.geometry.coordinates,Math.max(12,current.k));}else{chosen=null;summary();updateFrame();save();}};
+const areaToggle=root.querySelector('#lincoln-area-toggle'),detailToggle=root.querySelector('#lincoln-detail-toggle');
+areaToggle.checked=areaOn;detailToggle.checked=detailOn;
+areaToggle.onchange=()=>{areaOn=areaToggle.checked;colorMap();updateFrame();save();};
+detailToggle.onchange=()=>{detailOn=detailToggle.checked;colorMap();save();};
+window.addEventListener('openai:set_globals',event=>{const state=event.detail?.globals?.widgetState;if(!state)return;decade=years.includes(state.modelContent?.decade)?state.modelContent.decade:null;chosen=state.modelContent?.historicBuilding??null;areaOn=state.modelContent?.areaAge!==false;detailOn=state.modelContent?.parcelDetail!==false;areaToggle.checked=areaOn;detailToggle.checked=detailOn;picker.value=chosen===null?'':String(chosen);colorMap();updateFrame();});
+new ResizeObserver(draw).observe(stage);
+}catch(error){root.querySelector('.selection').textContent='The map could not load. Please reopen it.';console.error(error);}
+})();
+</script>

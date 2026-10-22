@@ -16,6 +16,17 @@
   /** @type {Record<string, unknown> | null} */
   let state = initialGlobals.widgetState ?? null;
   const statePersistence = initialGlobals.statePersistence ?? "none";
+  // Use the outer browser height, not the auto-sized iframe's content height.
+  // This avoids a feedback loop when a map sizes itself to the viewport.
+  const setViewportHeight = (height, offset) => {
+    if (typeof height === "number" && Number.isFinite(height) && height > 0 && height < 20000) {
+      root.style.setProperty("--host-viewport-height", `${height}px`);
+    }
+    if (typeof offset === "number" && Number.isFinite(offset) && offset >= 0 && offset < 100000) {
+      root.style.setProperty("--host-viewport-offset", `${offset}px`);
+    }
+  };
+  setViewportHeight(initialGlobals.viewportHeight, initialGlobals.viewportOffset);
   let nextStateRequestId = 0;
   /** @type {Map<number, { resolve: () => void; reject: (error: Error) => void; timeout: ReturnType<typeof globalThis.setTimeout>; serializedState: string }>} */
   const pendingStateWrites = new Map();
@@ -205,6 +216,7 @@
           (event) => {
             const data = apply(getMessageData, event, []);
             if (typeof data === "object" && data?.type === "measure") {
+              setViewportHeight(data.viewportHeight, data.viewportOffset);
               sendHeight();
             } else if (
               typeof data === "object" &&

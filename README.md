@@ -18,17 +18,34 @@ Three complementary views help explain the age of the city's buildings:
 - **Area age:** broad color regions showing the median residential construction
   decade within approximately 600 meters. These reveal patterns across larger
   areas of the city.
-- **Parcel detail:** 120-meter squares showing the most common construction
+- **Residential age grid:** 120-meter squares showing the most common construction
   decade among the dated residential parcels in each square. These are spatial
   summaries, not individual parcel boundaries.
-- **Historic buildings:** separate markers for recorded historic buildings and
-  sites, with their recorded construction dates.
+- **Historic buildings:** markers for recorded historic buildings and sites,
+  grouped at lower zoom levels, with their recorded construction dates.
 
 Street names and the city outline provide geographic context. Zoom and pan to
-explore, use **Citywide** or **Downtown** to change views, and toggle the two age
-layers independently. Select a decade in the legend to highlight it; select it
-again to restore all decades. Choose a historic building to center the map and
-read its dates.
+explore, or use **Citywide** and **Downtown** to change views. The residential
+grid appears automatically from 4× zoom; choose Always visible or Hidden to
+override it. Area age and historic markers can be toggled independently.
+
+Select a decade to highlight matching area medians, most-common grid decades,
+and historic construction dates. A square highlights only when the chosen decade
+is its most common decade, even if it contains some records from other decades.
+Choose **Show all** or select the active decade again to clear the highlight.
+A selected building remains visible even outside the active decade.
+
+Use **Find a place** to search historic buildings or streets, or browse the full
+historic list. Exact residential addresses are not included. Selecting a place
+centers the map and displays its details beside the map. On narrow screens,
+**Search & filters** opens the controls in a dialog.
+
+On desktop, drag to pan and hold Control or Command while scrolling to zoom.
+On touch screens, use **Move map** to enable dragging and pinching, then **Done
+moving** to resume page scrolling. Zoom buttons work in either mode. To use the
+keyboard, focus the map and use arrow keys to pan, +/− to zoom, Home for citywide,
+and Enter to inspect the crosshair. Escape exits map movement. **Expand map**
+provides more space without changing browser fullscreen settings.
 
 ## Data and interpretation
 
@@ -75,9 +92,10 @@ Open <http://localhost:8000/> in a modern browser. Press Control-C in the termin
 to stop the server.
 
 The site is static, with its geographic and building-age data embedded in the
-page. It needs no API key, account connection, or application server. An internet
-connection is required to load the pinned D3 and Floating UI libraries from
-jsDelivr and unpkg, and the browser must support `DecompressionStream`.
+page. It needs no API key, account connection, or application server. D3 7.9.0 is
+vendored and embedded at build time, so the downloaded page works offline.
+The browser must support `DecompressionStream`; unsupported browsers display a
+readable recovery message and retain the source/methodology information.
 
 ## Repository structure
 
@@ -86,6 +104,7 @@ jsDelivr and unpkg, and the browser must support `DecompressionStream`.
 - `source/data.json` — bundled city boundary, streets, residential summaries,
   historic records, and area-age grid. Street coordinates are stored as integers
   divided by 100,000 when rendered.
+- `source/vendor/` — pinned D3 library and its ISC license.
 - `tools/build.py` — packs the bundled data and regenerates the map page.
 - `tools/renderer/` — standalone page renderer, styles, and browser-state bridge.
 

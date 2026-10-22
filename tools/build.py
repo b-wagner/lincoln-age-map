@@ -16,7 +16,12 @@ payload = base64.b64encode(gzip.compress(
 template = (ROOT / 'source/map.template.html').read_text(encoding='utf-8')
 if template.count('PAYLOAD_PLACEHOLDER') != 1:
     raise ValueError('Expected exactly one data placeholder in the source template')
-fragment = template.replace('PAYLOAD_PLACEHOLDER', payload)
+if template.count('D3_PLACEHOLDER') != 1:
+    raise ValueError('Expected exactly one D3 placeholder in the source template')
+d3 = (ROOT / 'source/vendor/d3.v7.9.0.min.js').read_text(encoding='utf-8')
+fragment = template.replace('PAYLOAD_PLACEHOLDER', payload).replace(
+    'D3_PLACEHOLDER', d3.replace('</script', '<\\/script')
+)
 with tempfile.TemporaryDirectory(prefix='lincoln-map-build-') as temporary:
     source = Path(temporary) / 'lincoln-building-ages.html'
     source.write_text(fragment, encoding='utf-8')

@@ -90,6 +90,8 @@
   const initialGlobals = {
     widgetState: state,
     statePersistence: storage == null ? "none" : "local",
+    viewportHeight: globalThis.innerHeight,
+    viewportOffset: Math.max(0, -frame.getBoundingClientRect().top),
   };
 
   const channel = new MessageChannel();
@@ -217,13 +219,25 @@
   if (srcdoc == null) {
     return;
   }
+  const measureViewport = () => channel.port1.postMessage({
+    type: "measure",
+    viewportHeight: globalThis.innerHeight,
+    viewportOffset: Math.max(0, -frame.getBoundingClientRect().top),
+  });
+  let viewportFrame = 0;
+  globalThis.addEventListener("scroll", () => {
+    if (!viewportFrame) viewportFrame = requestAnimationFrame(() => {
+      viewportFrame = 0;
+      measureViewport();
+    });
+  }, { passive: true });
   globalThis.addEventListener("resize", () => {
     const height = Number.parseFloat(frame.style.height);
     if (!isShare && (!Number.isFinite(height) || height <= viewportHeight)) {
       frame.style.removeProperty("height");
     }
     viewportHeight = globalThis.innerHeight;
-    channel.port1.postMessage({ type: "measure" });
+    measureViewport();
   });
   frame.addEventListener(
     "load",

@@ -11,7 +11,7 @@ function sourceFunction(name) {
   const start = template.indexOf(`function ${name}(`);
   assert.ok(start >= 0, `Missing function ${name}`);
   const remaining = template.slice(start);
-  const end = remaining.slice(1).search(/\n(?:function |years\.forEach)/);
+  const end = remaining.slice(1).search(/\n(?:function |years\.forEach|window\.addEventListener)/);
   assert.ok(end >= 0, `Missing boundary after ${name}`);
   return remaining.slice(0, end + 1);
 }
@@ -44,14 +44,22 @@ function viewport(width) {
 
 function harness() {
   const handlers = {};
+  const elements = new Map();
   const context = vm.createContext({
     ...viewport(1000), current: transform(), decade: null, chosen: null,
-    inspectedSummary: null, areaOn: true, detailOn: true,
-    areaToggle: {}, detailToggle: {}, picker: {}, selection: {},
+    inspectedSummary: null, inspectedPoint: null, inspectedCell: null, inspectedTitle: null,
+    areaOn: true, detailOn: true, historicOn: true, detailMode: 'auto',
+    areaToggle: {}, detailSelect: {}, historicToggle: {}, picker: {}, selection: {},
     years: Array.from({ length: 17 }, (_, i) => 1860 + i * 10),
-    data, counts: Array(17).fill(0), colors: [],
+    data, total: data.counts.reduce((a, b) => a + b, 0), counts: Array(17).fill(0), colors: [],
     pathCells: null, areaLayer: null, markerLayer: null,
-    d3: { zoomIdentity: transform() }, root: { querySelectorAll: () => [] },
+    d3: { zoomIdentity: transform() }, root: {
+      querySelectorAll: () => [],
+      querySelector(selector) {
+        if (!elements.has(selector)) elements.set(selector, {});
+        return elements.get(selector);
+      },
+    },
     updateFrame() {},
     window: {
       addEventListener: (type, handler) => { handlers[type] = handler; },
@@ -63,7 +71,7 @@ function harness() {
       } },
     },
   });
-  const functions = ['save', 'restoreZoom', 'inspect', 'summary', 'colorMap', 'setBuilding'];
+  const functions = ['cellMatches', 'markerMatches', 'gridVisible', 'save', 'restoreZoom', 'inspect', 'summary', 'colorMap', 'setBuilding', 'clearSelection', 'setDecade', 'applyState'];
   vm.runInContext(functions.map(sourceFunction).join('\n'), context);
   vm.runInContext(template.split('\n').find(line => line.startsWith("window.addEventListener('openai:set_globals'")), context);
   return context;
@@ -81,17 +89,58 @@ test('inspected parcel and area summaries survive zoom saves, recoloring, and re
   }
 });
 
-test('building and decade selections replace inspected area details', () => {
+test('building selection replaces area details, while decade filtering preserves the selected location', () => {
   const c = harness();
   c.inspect('Parcel details');
   const building = data.historic.features[0];
   c.setBuilding(building);
-  assert.ok(c.selection.textContent.startsWith(building.properties.name));
+  assert.equal(c.root.querySelector('.selection-title').textContent, building.properties.name);
+  assert.ok(c.selection.textContent.startsWith(building.properties.date));
   c.inspect('Area details');
   assert.equal(c.chosen, null);
   assert.equal(c.picker.value, '');
-  c.window.openai.setWidgetState({ modelContent: { decade: 1920 } });
+  c.setDecade(1920);
+  assert.equal(c.selection.textContent, 'Area details');
+  c.clearSelection();
   assert.ok(c.selection.textContent.startsWith('1920s'));
+});
+
+test('mixed-decade cells match only their most common decade', () => {
+  const c = harness();
+  const mixed = data.cells.find(cell => cell[2] !== 16 && cell[4].filter((_, i) => i % 2 === 0).includes(16));
+  assert.ok(mixed, 'Fixture contains a mixed-decade square');
+  assert.equal(c.cellMatches(mixed, 2020), false);
+  assert.equal(c.cellMatches(mixed, 1860 + mixed[2] * 10), true);
+  assert.equal(c.cellMatches(mixed, null), true);
+});
+
+test('selected buildings remain visible outside the highlighted decade', () => {
+  const c = harness();
+  const capitol = data.historic.features.find(f => f.properties.name === 'Nebraska State Capitol');
+  c.setDecade(2020);
+  assert.equal(c.markerMatches(capitol, 2020, null), false);
+  c.setBuilding(capitol);
+  assert.equal(c.markerMatches(capitol, 2020, c.chosen), true);
+  assert.ok(c.selection.textContent.includes('Outside the highlighted decade'));
+  c.setDecade(2010);
+  assert.equal(c.chosen, capitol.properties.id);
+  assert.equal(c.lastSavedState.modelContent.historicBuilding, capitol.properties.id);
+});
+
+test('automatic grid visibility and explicit layer overrides survive state saves', () => {
+  const c = harness();
+  assert.equal(c.gridVisible('auto', 1), false);
+  assert.equal(c.gridVisible('auto', 4), true);
+  assert.equal(c.gridVisible('on', 1), true);
+  assert.equal(c.gridVisible('off', 80), false);
+  c.detailMode = 'on';
+  c.historicOn = false;
+  c.save();
+  assert.equal(c.detailMode, 'on');
+  assert.equal(c.lastSavedState.modelContent.gridMode, 'on');
+  assert.equal(c.lastSavedState.modelContent.historicMarkers, false);
+  c.applyState({ modelContent: { parcelDetail: false } });
+  assert.equal(c.detailMode, 'off');
 });
 
 test('saved geographic centers survive narrow and wide viewport changes', () => {
@@ -124,4 +173,30 @@ test('legacy views remain readable and invalid zoom state falls back safely', ()
     assert.equal(c.restoreZoom(state).k, 1);
   }
   assert.equal(c.restoreZoom({ k: 100, center: [-96.7, 40.8] }).k, 80);
+});
+
+test('unsupported browsers show recovery information instead of a perpetual loading state', async () => {
+  const elements = new Map();
+  const panel = { open: false, addEventListener() {} };
+  const root = {
+    querySelector(selector) {
+      if (selector === '.controls-panel') return panel;
+      if (!elements.has(selector)) elements.set(selector, {});
+      return elements.get(selector);
+    },
+    querySelectorAll: () => [],
+  };
+  const context = vm.createContext({
+    document: { getElementById: () => root },
+    matchMedia: () => ({ matches: true, addEventListener() {} }),
+    ResizeObserver: class { observe() {} },
+    d3: {}, console: { error() {} }, window: {},
+  });
+  const script = template.slice(template.lastIndexOf('<script>') + '<script>'.length, template.lastIndexOf('</script>'));
+  await vm.runInContext(script, context);
+  assert.equal(elements.get('.loading-title').textContent, 'The interactive map could not load');
+  assert.ok(elements.get('.loading-description').textContent.includes('current version'));
+  assert.equal(elements.get('.retry-map').hidden, false);
+  assert.ok(elements.get('.selection').textContent.includes('87,356'));
+  assert.ok(elements.get('.search-status').textContent.includes('methodology remain available'));
 });

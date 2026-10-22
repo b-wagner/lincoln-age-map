@@ -1,55 +1,208 @@
 <div id="lincoln-ages">
 <style>
-#lincoln-ages .map-stage{position:relative;width:100%;overflow:hidden}
-#lincoln-ages .map-stage svg{display:block;width:100%;touch-action:none;cursor:grab}
+#lincoln-ages{--map-muted:light-dark(#555e65,#b5bec5);--map-border:light-dark(#d8dee2,#41494e);--map-surface:light-dark(#f6f8f9,#22272b);--map-accent:light-dark(#295b53,#9ed4c1);--map-land:light-dark(#e8edef,#2d353a);color:var(--foreground);max-width:1800px;margin:auto;font-size:15px;line-height:1.5}
+#lincoln-ages *{box-sizing:border-box}
+#lincoln-ages h1{font-size:28px;letter-spacing:-.7px;line-height:1.15;margin:4px 0 8px;font-weight:600}
+#lincoln-ages h2{font-size:16px;line-height:1.4;font-weight:600;margin:0 0 8px}
+#lincoln-ages p{margin:0}
+#lincoln-ages .app-header{margin:4px 0 20px}
+#lincoln-ages .eyebrow{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--map-accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lincoln-ages .subhead,#lincoln-ages .muted{color:var(--map-muted)}
+#lincoln-ages .workspace{--workspace-height:clamp(440px,calc(var(--host-viewport-height,800px) - 152px),1100px);display:grid;grid-template-columns:304px minmax(0,1fr);gap:20px;align-items:start}
+#lincoln-ages .controls-panel{position:static;inset:auto;display:block;width:100%;max-width:none;max-height:none;height:var(--workspace-height);margin:0;padding:0 16px 0 0;border:0;border-right:1px solid var(--map-border);background:var(--background);color:var(--foreground);overflow:auto;overscroll-behavior:contain}
+#lincoln-ages .controls-panel:not([open]){display:none}
+#lincoln-ages .panel-section{padding:18px 0;border-bottom:1px solid var(--map-border)}
+#lincoln-ages .panel-section:first-of-type{padding-top:0}
+#lincoln-ages .panel-top{display:none}
+#lincoln-ages .btn{min-height:44px;padding:0 12px;border:1px solid var(--map-border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:14px;cursor:pointer}
+#lincoln-ages button:hover{background:var(--map-surface)}
+#lincoln-ages :is(button,input,select,summary,a,[tabindex]):focus-visible{outline:3px solid var(--map-accent);outline-offset:3px}
+#lincoln-ages .form-control,#lincoln-ages .form-select{width:100%;min-height:44px;border:1px solid var(--map-border);border-radius:8px;background-color:var(--background);color:var(--foreground);font-size:16px}
+#lincoln-ages .form-control{padding:8px 10px}
+#lincoln-ages label{display:block}
+#lincoln-ages .field-label{display:block;font-size:14px;font-weight:600;margin-bottom:8px}
+#lincoln-ages .search-status{font-size:12px;color:var(--map-muted);margin:8px 0}
+#lincoln-ages .place-results{list-style:none;padding:0;margin:0;display:grid;gap:3px}
+#lincoln-ages .place-results button{width:100%;min-height:44px;display:block;text-align:left;padding:8px;border:0;border-radius:6px;background:transparent;color:var(--foreground);font:inherit;font-size:13px;cursor:pointer;line-height:1.4}
+#lincoln-ages .place-results small{display:block;color:var(--map-muted);font-size:12px}
+#lincoln-ages .place-results button[aria-current="true"]{background:var(--map-surface);box-shadow:inset 3px 0 var(--map-accent)}
+#lincoln-ages details{font-size:13px;margin-top:12px}
+#lincoln-ages summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-weight:500}
+#lincoln-ages summary::before{content:'+';font-size:18px;flex-shrink:0}
+#lincoln-ages details[open]>summary::before{content:'−'}
+#lincoln-ages details p{margin-bottom:10px}
+#lincoln-ages .layer-check{display:flex;gap:10px;align-items:center;min-height:44px;font-size:14px;cursor:pointer}
+#lincoln-ages .layer-check input{width:18px;height:18px;accent-color:var(--map-accent);flex-shrink:0}
+#lincoln-ages .layer-check small{display:block;font-size:12px;color:var(--map-muted)}
+#lincoln-ages .grid-label{margin:12px 0 6px;font-size:14px}
+#lincoln-ages .legend-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#lincoln-ages .legend-heading .btn{font-size:12px;padding:0 8px}
+#lincoln-ages .legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:12px 0}
+#lincoln-ages .legend button{display:flex;align-items:center;gap:6px;min-height:44px;padding:6px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--foreground);font:inherit;font-size:12px;cursor:pointer}
+#lincoln-ages .legend button[aria-pressed="true"]{border-color:var(--map-accent);background:var(--map-surface);font-weight:700;box-shadow:inset 0 -3px var(--map-accent)}
+#lincoln-ages .swatch{width:12px;height:18px;border-radius:2px;flex-shrink:0;border:1px solid color-mix(in srgb,var(--foreground) 25%,transparent)}
+#lincoln-ages .map-main{min-width:0;height:var(--workspace-height);display:grid;grid-template-rows:auto minmax(180px,1fr) auto;border:1px solid var(--map-border);border-radius:12px;overflow:hidden;background:var(--map-surface)}
+#lincoln-ages .map-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px;background:var(--background);border-bottom:1px solid var(--map-border)}
+#lincoln-ages .nav-group{display:flex;align-items:center;gap:4px}
+#lincoln-ages .zoom-btn{width:44px;min-width:44px;font-size:22px;padding:0}
+#lincoln-ages .zoom-level{font-size:12px;min-width:36px;text-align:center;color:var(--map-muted)}
+#lincoln-ages .mobile-only{display:none}
+#lincoln-ages .map-stage{position:relative;width:100%;min-height:0;overflow:hidden;background:var(--background)}
+#lincoln-ages .map-stage svg{display:block;width:100%;height:100%;touch-action:pan-y pinch-zoom;cursor:grab}
 #lincoln-ages .map-stage svg:active{cursor:grabbing}
-#lincoln-ages .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px 10px;margin:12px 0}
-#lincoln-ages .legend button{display:flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--foreground);font:inherit;padding:4px 0;text-align:left}
-#lincoln-ages .legend button[aria-pressed="true"]{text-decoration:underline;text-underline-offset:4px}
-#lincoln-ages .swatch{width:16px;height:12px;flex-shrink:0}
-#lincoln-ages .selection{min-height:44px;margin-top:12px}
-#lincoln-ages text{fill:var(--foreground);font-size:12px;font-weight:400;paint-order:stroke;stroke:var(--background);stroke-width:3px;stroke-linejoin:round}
-#lincoln-ages .map-tip{display:none;position:absolute;max-width:260px;pointer-events:none;padding:8px 10px;background:var(--popover);color:var(--popover-foreground);border:1px solid var(--border);z-index:2}
-#lincoln-ages .historic-picker{max-width:100%}
+#lincoln-ages .map-stage[data-touch-explore="true"] svg{touch-action:none}
+#lincoln-ages .map-stage:focus-visible{outline-offset:-4px;outline:3px solid var(--map-accent)}
+#lincoln-ages .map-stage text{fill:var(--foreground);font-size:12px;font-weight:400;paint-order:stroke;stroke:var(--background);stroke-width:3px;stroke-linejoin:round}
+#lincoln-ages .map-stage .marker-group{cursor:pointer;outline:none}
+#lincoln-ages .map-stage .marker-group:focus .marker-face{stroke:var(--map-accent);stroke-width:4}
+#lincoln-ages .map-stage .cluster-count{fill:var(--background);stroke:none;font-size:12px;font-weight:700;pointer-events:none}
+#lincoln-ages .map-stage .selected-label{font-size:13px;font-weight:600}
+#lincoln-ages .map-center{opacity:0;pointer-events:none}
+#lincoln-ages .map-stage:focus .map-center{opacity:1}
+#lincoln-ages .map-hint{position:absolute;top:10px;left:10px;right:44px;pointer-events:none;font-size:12px;color:var(--map-muted)}
+#lincoln-ages .map-tip{display:none;position:absolute;max-width:min(280px,calc(100% - 16px));pointer-events:none;padding:8px 10px;background:var(--popover);color:var(--popover-foreground);border:1px solid var(--map-border);border-radius:8px;font-size:13px;box-shadow:0 3px 16px #0002;z-index:2}
+#lincoln-ages .map-loading{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;text-align:center;padding:24px;gap:12px;background:var(--background);z-index:4}
+#lincoln-ages [hidden]{display:none!important}
+#lincoln-ages .map-info{background:var(--background);border-top:1px solid var(--map-border);padding:12px 16px}
+#lincoln-ages .mini-legend{display:grid;grid-template-columns:auto minmax(30px,100px) auto 1fr;align-items:center;gap:8px;font-size:11px;color:var(--map-muted);margin-bottom:10px}
+#lincoln-ages .color-ramp{height:7px;border-radius:4px}
+#lincoln-ages .active-decade{text-align:right;font-size:12px;font-weight:600;color:var(--foreground)}
+#lincoln-ages .selection-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#lincoln-ages .selection-title{font-size:14px;font-weight:600;margin:0}
+#lincoln-ages .selection{font-size:13px;color:var(--map-muted);margin-top:2px;overflow-wrap:anywhere}
+#lincoln-ages .clear-selection{font-size:12px;padding:0 10px;flex-shrink:0}
+#lincoln-ages .layer-status{font-size:11px;color:var(--map-muted);margin-top:8px}
+#lincoln-ages .credits{font-size:12px;color:var(--map-muted);margin-top:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#lincoln-ages a{color:var(--map-accent);text-decoration:underline}
+#lincoln-ages.map-expanded .app-header,#lincoln-ages.map-expanded .credits{display:none}
+#lincoln-ages.map-expanded .workspace{grid-template-columns:minmax(0,1fr);--workspace-height:calc(var(--host-viewport-height,800px) - 32px)}
+#lincoln-ages.map-expanded .controls-panel{position:fixed;inset:calc(var(--host-viewport-offset,0px) + 12px) 0 auto;max-width:440px;height:auto;max-height:calc(var(--host-viewport-height,800px) - 48px);margin:0 auto;padding:20px;border:1px solid var(--map-border);border-radius:14px;z-index:5}
+#lincoln-ages.map-expanded .controls-panel[open]{display:block}
+#lincoln-ages.map-expanded .panel-top,#lincoln-ages.map-expanded .open-panel{display:flex}
+#lincoln-ages .controls-panel::backdrop{background:#0008}
+@media(max-width:900px){
+ #lincoln-ages .app-header{margin:0 0 12px}
+ #lincoln-ages h1{font-size:23px;letter-spacing:-.5px}
+ #lincoln-ages .subhead{font-size:12px}
+ #lincoln-ages .workspace{display:block}
+ #lincoln-ages .map-main{height:auto;grid-template-rows:auto auto auto}
+ #lincoln-ages .map-stage{height:clamp(180px,calc(var(--host-viewport-height,800px) - var(--app-header-height,100px) - var(--info-height,130px) - var(--toolbar-height,108px) - 64px),720px)}
+ #lincoln-ages .controls-panel{position:fixed;inset:calc(var(--host-viewport-offset,0px) + 12px) 0 auto;width:calc(100% - 24px);max-width:440px;height:auto;max-height:calc(var(--host-viewport-height,800px) - 32px);margin:0 auto;border:1px solid var(--map-border);border-radius:14px;padding:18px}
+ #lincoln-ages .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+ #lincoln-ages .mobile-only{display:flex}
+ #lincoln-ages .map-toolbar{gap:6px;padding:6px}
+ #lincoln-ages .map-toolbar .btn:not(.zoom-btn){padding:0 8px;font-size:12px}
+ #lincoln-ages .zoom-level{display:none}
+ #lincoln-ages .secondary-tools{width:100%;justify-content:space-between}
+ #lincoln-ages .map-info{padding:10px 12px}
+ #lincoln-ages .mini-legend{grid-template-columns:auto 40px auto 1fr;gap:5px}
+ #lincoln-ages .active-decade{font-size:11px}
+ #lincoln-ages .layer-status{display:none}
+ #lincoln-ages .selection{max-height:60px;overflow-y:auto}
+ #lincoln-ages .selection-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+ #lincoln-ages .credits{font-size:11px}
+ #lincoln-ages.map-expanded .map-main{height:auto}
+ #lincoln-ages.map-expanded .map-stage{height:max(180px,calc(var(--host-viewport-height,800px) - var(--info-height,130px) - var(--toolbar-height,108px) - 32px))}
+}
+@media(min-width:600px) and (max-width:900px){#lincoln-ages .secondary-tools{width:auto}}
+@media(min-width:901px){#lincoln-ages .open-panel{display:none}#lincoln-ages .panel-top{align-items:center;justify-content:space-between;margin-bottom:16px}}
+@media(pointer:coarse){#lincoln-ages .touch-mode{display:flex}}
 </style>
-<h2>Lincoln · building ages</h2>
-<div class="text-small text-muted">Broad colors: typical area age · Squares: parcel-based detail · Circles: historic buildings</div>
-<div class="viz-controls" aria-label="Map navigation">
-<button type="button" class="btn" data-zoom="in" aria-label="Zoom in">+</button>
-<button type="button" class="btn" data-zoom="out" aria-label="Zoom out">−</button>
-<button type="button" class="btn" data-view="city">Citywide</button>
-<button type="button" class="btn" data-view="downtown">Downtown</button>
-<span class="zoom-level text-small tabular-nums" aria-live="polite">1×</span>
+<header class="app-header">
+<div class="eyebrow">Lincoln, Nebraska · A residential history</div>
+<h1>When Lincoln was built</h1>
+<p class="subhead">87,356 dated residential parcels · 170 historic records</p>
+</header>
+<div class="workspace">
+<dialog class="controls-panel" aria-labelledby="panel-title" open>
+<div class="panel-top"><h2 id="panel-title">Explore & filters</h2><button class="btn close-panel" type="button">Done</button></div>
+<section class="panel-section">
+<label for="place-search" class="field-label">Find a place</label>
+<input id="place-search" class="form-control" type="search" placeholder="Historic building or street" autocomplete="off" aria-describedby="place-status" aria-controls="place-results">
+<p class="search-status" id="place-status" role="status">Search historic buildings or named streets.</p>
+<ul class="place-results" id="place-results" aria-label="Places"></ul>
+<details><summary>Browse all historic buildings</summary><label for="historic-picker" class="field-label">Historic building</label><select id="historic-picker" class="form-select historic-picker"><option value="">Choose a historic building…</option></select></details>
+</section>
+<details class="panel-section layer-settings">
+<summary><span id="layers-title">Map layers</span></summary>
+<label class="layer-check"><input type="checkbox" id="lincoln-area-toggle" checked><span>Area age<small>Median residential decade within 600 m</small></span></label>
+<label class="layer-check"><input type="checkbox" id="lincoln-historic-toggle" checked><span>Historic buildings<small>Grouped nearby records; select to explore</small></span></label>
+<label for="lincoln-detail-mode" class="grid-label">Residential age grid · 120 m squares</label>
+<select id="lincoln-detail-mode" class="form-select"><option value="auto">Automatic · visible from 4× zoom</option><option value="on">Always visible</option><option value="off">Hidden</option></select>
+</details>
+<section class="panel-section" aria-labelledby="decades-title">
+<div class="legend-heading"><h2 id="decades-title">Construction decade</h2><button type="button" class="btn clear-decade">Show all</button></div>
+<p class="muted" style="font-size:12px">Select to highlight matching area medians, most-common grid decades, and historic dates.</p>
+<div class="legend" role="group" aria-label="Highlight construction decade"></div>
+<p class="decade-counts muted" style="font-size:12px"></p>
+</section>
+<details class="methodology"><summary>Sources & methodology</summary>
+<p>Snapshot: October 20, 2026. Colors summarize dated residential records, not every building or individual parcel boundaries.</p>
+<p>Area age is the median decade within approximately 600 m, using at least 20 records. Each 120 m grid square shows its most common decade. Historic markers are separate records and may overlap residential records; multi-phase buildings use their earliest date for color.</p>
+<p>Blank areas may contain commercial, institutional, or other properties without usable residential dates. The shapes are not official neighborhood boundaries. Assessor dates may be approximate.</p>
+<p>Public GIS sources: <a href="https://gis.lincoln.ne.gov/public/rest/services/Assessor/TaxParcels/MapServer/0" target="_blank" rel="noopener">Assessor parcels</a>, <a href="https://gis.lincoln.ne.gov/public/rest/services/Planning/HistoricPreservation/MapServer/0" target="_blank" rel="noopener">historic preservation</a>, <a href="https://gis.lincoln.ne.gov/public/rest/services/Planning/Streets/MapServer/0" target="_blank" rel="noopener">streets</a>, and <a href="https://gis.lincoln.ne.gov/public/rest/services/CityCounty/CityLimits/MapServer/4" target="_blank" rel="noopener">city limits</a>.</p>
+</details>
+<details><summary>How to use the map</summary><p>Click or tap an area for details. Select a group of historic buildings to zoom in. Use Find a place to search buildings or streets; exact residential addresses are not included.</p><p>On a touch screen, choose Move map to drag or pinch, then Done moving to resume page scrolling. On desktop, drag to pan and hold Ctrl or ⌘ while scrolling to zoom.</p><p id="keyboard-help">Keyboard: focus the map, use arrows to pan, + / − to zoom, Home for citywide, and Enter to inspect the crosshair. Escape exits map movement.</p></details>
+</dialog>
+<section class="map-main" aria-label="Building age explorer">
+<div class="map-toolbar" role="group" aria-label="Map navigation">
+<div class="nav-group"><button type="button" class="btn zoom-btn" data-zoom="in" aria-label="Zoom in">+</button><button type="button" class="btn zoom-btn" data-zoom="out" aria-label="Zoom out">−</button><span class="zoom-level">1×</span><button type="button" class="btn" data-view="city">Citywide</button><button type="button" class="btn" data-view="downtown">Downtown</button></div>
+<div class="nav-group secondary-tools"><button type="button" class="btn open-panel">Search & filters</button><button type="button" class="btn mobile-only touch-mode" aria-pressed="false">Move map</button><button type="button" class="btn expand-map" aria-pressed="false">Expand map</button></div>
 </div>
-<div class="viz-controls" aria-label="Age layers">
-<label class="form-check"><input type="checkbox" class="form-check-input" id="lincoln-area-toggle" checked><span class="form-check-label">Area age · median within 600 m</span></label>
-<label class="form-check"><input type="checkbox" class="form-check-input" id="lincoln-detail-toggle" checked><span class="form-check-label">Parcel detail · 120 m areas</span></label>
+<div class="map-stage" tabindex="0" role="region" aria-label="Interactive map of Lincoln building ages" aria-describedby="keyboard-help" data-touch-explore="false">
+<svg role="group" aria-label="Residential construction decades and historic markers in Lincoln."></svg>
+<div class="map-hint">Select an area to learn more · Ctrl / ⌘ + scroll to zoom</div>
+<div class="map-tip" role="tooltip"></div>
+<div class="map-loading" role="status"><strong class="loading-title">Preparing Lincoln’s building ages…</strong><p class="loading-description">Loading the bundled map. No live data connection is needed.</p><button type="button" class="btn retry-map" hidden>Retry map</button>
+<noscript><p>The interactive map needs JavaScript. It summarizes 87,356 dated residential parcels into area medians and 120 m grids, with 170 separate historic records. Enable JavaScript to explore the map.</p></noscript>
 </div>
-<div class="text-small text-muted">Scroll or pinch to zoom · Drag to pan · Street names appear as you zoom in</div>
-<div class="map-stage"><svg role="img" aria-label="Zoomable map of Lincoln showing residential construction decades, historic buildings, and street names."></svg><div class="map-tip" role="tooltip"></div></div>
-<div class="legend" aria-label="Construction decade"></div>
-<label class="form-label">Historic building<select class="form-select historic-picker"><option value="">Choose a historic building…</option></select></label>
-<div class="selection text-small" aria-live="polite">Loading map…</div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<div class="map-info">
+<div class="mini-legend"><span>1860s</span><span class="color-ramp" aria-hidden="true"></span><span>2020s</span><span class="active-decade">All decades</span></div>
+<div class="selection-heading"><p class="selection-title">Start exploring</p><button type="button" class="btn clear-selection" hidden aria-label="Clear selected location">Clear</button></div>
+<div class="selection" role="status" aria-live="polite" tabindex="0">Select an area, search for a place, or choose Downtown to explore.</div>
+<p class="layer-status"></p>
+</div>
+</section>
+</div>
+<footer class="credits"><span>City of Lincoln / Lancaster County public GIS · October 2026</span><span>Residential patterns, not parcel boundaries</span></footer>
+</div>
+<script>D3_PLACEHOLDER</script>
 <script type="application/octet-stream" id="lincoln-map-payload">PAYLOAD_PLACEHOLDER</script>
 <script>
 (async()=>{
 const root=document.getElementById('lincoln-ages');
+const panel=root.querySelector('.controls-panel'),mobile=matchMedia('(max-width:900px)');
+let panelTrigger=null;
+function syncPanel(){const sidebar=!mobile.matches&&!root.classList.contains('map-expanded');if(sidebar){if(panel.matches(':modal'))panel.close();if(!panel.open)panel.show();}else if(panel.open)panel.close();}
+function openPanel(){panelTrigger=document.activeElement;if(panel.open)panel.close();panel.showModal();root.querySelector('#place-search').focus();}
+function closePanel(){if(panel.open)panel.close();if(!mobile.matches&&!root.classList.contains('map-expanded'))panel.show();panelTrigger?.focus({preventScroll:true});}
+root.querySelector('.open-panel').onclick=openPanel;
+root.querySelector('.close-panel').onclick=closePanel;
+panel.addEventListener('click',event=>{if(event.target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closePanel();}});
+panel.addEventListener('cancel',event=>{event.preventDefault();closePanel();});
+mobile.addEventListener('change',syncPanel);syncPanel();
+root.querySelector('.retry-map').onclick=()=>window.location.reload();
+new ResizeObserver(()=>{const header=root.querySelector('.app-header');root.style.setProperty('--app-header-height',`${header.getBoundingClientRect().height+parseFloat(getComputedStyle(header).marginBottom)}px`);}).observe(root.querySelector('.app-header'));
+const chromeObserver=new ResizeObserver(()=>{root.style.setProperty('--info-height',`${root.querySelector('.map-info').getBoundingClientRect().height}px`);root.style.setProperty('--toolbar-height',`${root.querySelector('.map-toolbar').getBoundingClientRect().height}px`);});chromeObserver.observe(root.querySelector('.map-info'));chromeObserver.observe(root.querySelector('.map-toolbar'));
 try{
+if(typeof d3==='undefined')throw new Error('Map library unavailable');
+if(typeof DecompressionStream==='undefined')throw new Error('This browser cannot unpack the map. Try a current version of Safari, Chrome, Firefox, or Edge.');
 const raw=Uint8Array.from(atob(document.getElementById('lincoln-map-payload').textContent.trim()),c=>c.charCodeAt(0));
 const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));
 const data=JSON.parse(await new Response(stream).text());
 const svg=d3.select(root.querySelector('svg')),stage=root.querySelector('.map-stage'),tip=root.querySelector('.map-tip'),selection=root.querySelector('.selection'),picker=root.querySelector('.historic-picker');
 const saved=window.openai?.widgetState;
 const years=d3.range(1860,2030,10),colors=years.map((_,i)=>`color-mix(in srgb, ${d3.interpolateTurbo(.03+i/16*.94)} 88%, var(--foreground))`);
-let decade=years.includes(saved?.modelContent?.decade)?saved.modelContent.decade:null,chosen=saved?.modelContent?.historicBuilding??null;
-let areaOn=saved?.modelContent?.areaAge!==false,detailOn=saved?.modelContent?.parcelDetail!==false;
-let inspectedSummary=null;
-let width,height,projection,geo,pathCells,areaLayer,markerLayer,labelLayer,scaleLayer,mapLayer,streetLines=[],current=d3.zoomIdentity,frame=0,initialized=false;
+let decade=years.includes(saved?.modelContent?.decade)?saved.modelContent.decade:null,chosen=data.historic.features.some(f=>f.properties.id===saved?.modelContent?.historicBuilding)?saved.modelContent.historicBuilding:null;
+let areaOn=saved?.modelContent?.areaAge!==false,detailOn=saved?.modelContent?.parcelDetail!==false,historicOn=saved?.modelContent?.historicMarkers!==false;
+let detailMode=['auto','on','off'].includes(saved?.modelContent?.gridMode)?saved.modelContent.gridMode:detailOn?'auto':'off';
+let inspectedSummary=null,inspectedPoint=null,inspectedCell=null,inspectedTitle=null,touchExplore=false;
+let width,height,projection,geo,pathCells,cellLayer,areaLayer,markerLayer,labelLayer,scaleLayer,mapLayer,selectionLayer,streetLines=[],current=d3.zoomIdentity,frame=0,initialized=false,lastCellFactor=null;
 const counts=years.map(y=>data.historic.features.filter(f=>Math.floor(f.properties.year/10)*10===y).length),total=d3.sum(data.counts);
 for(const f of data.boundary.features){const ps=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;for(const rs of ps)for(let i=0;i<rs.length;i++){const r=rs[i],a=d3.sum(r.slice(1).map((v,j)=>r[j][0]*v[1]-v[0]*r[j][1]));if((i===0&&a>0)||(i>0&&a<0))r.reverse();}}
 const streets=data.streets.map(r=>({type:'Feature',properties:{name:r[0],type:r[1]},geometry:{type:'LineString',coordinates:r[2].map(pt=>[pt[0]/1e5,pt[1]/1e5])}}));
+const streetIndex=Array.from(d3.group(streets.filter(f=>f.properties.name),f=>f.properties.name),([name,features])=>({name,features})).sort((a,b)=>a.name.localeCompare(b.name));
 const area=data.area;
 const areaShapes=years.map((year,index)=>{
  const contour=d3.contours().size([area.nx,area.ny]).thresholds([.5])(area.values.map(v=>v[0]===index?1:0))[0];
@@ -60,45 +213,65 @@ const areaShapes=years.map((year,index)=>{
  }));return {type:'Feature',properties:{index,year},geometry:{type:'MultiPolygon',coordinates}};
 }).filter(f=>f.geometry.coordinates.length);
 function areaAt(point){const i=Math.round((point[0]-area.lon)/area.dx),j=Math.round((point[1]-area.lat)/area.dy);if(i<0||j<0||i>=area.nx||j>=area.ny)return null;const a=area.values[j*area.nx+i];return a[0]<0?null:{decade:years[a[0]],n:a[1]};}
-function save(){window.openai?.setWidgetState({modelContent:{decade,historicBuilding:chosen,areaAge:areaOn,parcelDetail:detailOn},privateContent:{zoom:{k:current.k,center:projection.invert(current.invert([width/2,height/2]))}}}).catch(()=>{});}
+function cellMatches(d,year){return year===null||1860+d[2]*10===year;}
+function markerMatches(f,year,selected){return f.properties.id===selected||year===null||Math.floor(f.properties.year/10)*10===year;}
+function gridVisible(mode,k){return mode==='on'||mode==='auto'&&k>=4;}
+function save(){window.openai?.setWidgetState({modelContent:{decade,historicBuilding:chosen,areaAge:areaOn,parcelDetail:detailOn,gridMode:detailMode,historicMarkers:historicOn},privateContent:{zoom:{k:current.k,center:projection.invert(current.invert([width/2,height/2]))}}}).catch(()=>{});}
 function restoreZoom(z){
 if(!Number.isFinite(z?.k))return d3.zoomIdentity;
 const k=Math.max(1,Math.min(80,z.k));
 if(Array.isArray(z.center)&&z.center.length===2&&z.center.every(Number.isFinite)&&Math.abs(z.center[0])<=180&&Math.abs(z.center[1])<90){
 const xy=projection(z.center);return d3.zoomIdentity.translate(width/2-k*xy[0],height/2-k*xy[1]).scale(k);
 }
-// Retain views saved before geographic centers were stored.
 if(Number.isFinite(z.x)&&Number.isFinite(z.y))return d3.zoomIdentity.translate(z.x*width,z.y*height).scale(k);
 return d3.zoomIdentity;
 }
-function inspect(text){inspectedSummary=text;chosen=null;picker.value='';summary();updateFrame();save();}
+function inspect(text,point=null,cell=null,title='Selected area'){inspectedSummary=text;inspectedPoint=point;inspectedCell=cell;inspectedTitle=title;chosen=null;picker.value='';summary();updateFrame();save();}
 function summary(){
-if(inspectedSummary!==null){selection.textContent=inspectedSummary;return;}
 const f=data.historic.features.find(f=>f.properties.id===chosen);
-if(f){const a=f.properties;selection.textContent=`${a.name} · ${a.date} · ${a.designation}. Historic preservation record; color uses the earliest listed year.`;return;}
-selection.textContent=decade===null?`Area age: median residential construction decade within 600 m, using at least 20 records. Parcel detail: most common decade in each 120 m area.`:`${decade}s · ${data.counts[(decade-1860)/10].toLocaleString()} residential parcels · ${counts[(decade-1860)/10]} historic buildings. Records may overlap.`;
+let title='Start exploring';
+if(inspectedSummary!==null){selection.textContent=inspectedSummary;title=inspectedTitle||'Selected area';}
+else if(f){const a=f.properties;title=a.name;selection.textContent=`${a.date} · ${a.designation}. ${decade!==null&&Math.floor(a.year/10)*10!==decade?'Outside the highlighted decade. ':''}${!historicOn?'Historic layer hidden; selected building stays visible. ':''}Color uses the earliest listed year.`;}
+else{selection.textContent=decade===null?'Select an area, find a building or street, or choose Downtown to explore.':`${decade}s · Matching area medians, most-common grid decades, and historic dates. Citywide totals: ${data.counts[(decade-1860)/10].toLocaleString()} residential records and ${counts[(decade-1860)/10]} historic records; records may overlap.`;title=decade===null?'Start exploring':`${decade}s highlighted`;}
+root.querySelector('.selection-title').textContent=title;
+root.querySelector('.clear-selection').hidden=!f&&inspectedSummary===null;
+root.querySelector('.active-decade').textContent=decade===null?'All decades':`${decade}s highlighted`;
+root.querySelector('.decade-counts').textContent=decade===null?`${total.toLocaleString()} dated residential parcels · ${data.historic.features.length} historic records citywide`:`${decade}s citywide: ${data.counts[(decade-1860)/10].toLocaleString()} residential records · ${counts[(decade-1860)/10]} historic records. A square highlights only when this is its most common decade.`;
+root.querySelectorAll('.place-results button[data-building]').forEach(b=>b.setAttribute('aria-current',String(Number(b.dataset.building)===chosen)));
 }
 function colorMap(){
-pathCells?.attr('fill',d=>colors[decade===null?d[2]:(decade-1860)/10]).attr('opacity',d=>decade===null?.85:(d[4].some((v,j)=>j%2===0&&v===(decade-1860)/10)?.95:.045));
-areaLayer?.attr('display',areaOn?null:'none').selectAll('path').attr('fill',f=>colors[f.properties.index]).attr('fill-opacity',f=>decade===null||f.properties.year===decade?.52:.035);
-pathCells?.attr('display',detailOn?null:'none');
-markerLayer?.selectAll('circle').attr('fill',f=>colors[(Math.floor(f.properties.year/10)*10-1860)/10]).attr('opacity',f=>decade===null||Math.floor(f.properties.year/10)*10===decade?1:.08);
+pathCells?.attr('fill',d=>colors[d[2]]).attr('opacity',d=>cellMatches(d,decade)?.9:.06);
+areaLayer?.attr('display',areaOn?null:'none').selectAll('path').attr('fill',f=>colors[f.properties.index]).attr('fill-opacity',f=>decade===null||f.properties.year===decade?.72:.045);
 root.querySelectorAll('.legend button').forEach((b,i)=>b.setAttribute('aria-pressed',String(years[i]===decade)));summary();
 }
-years.forEach((y,i)=>{const b=document.createElement('button');b.type='button';b.className='cursor-interaction';b.setAttribute('aria-pressed',String(decade===y));b.setAttribute('aria-label',`${y}s: highlight construction decade`);const sw=document.createElement('span');sw.className='swatch';sw.style.background=colors[i];b.append(sw,`${y}s`);b.onclick=()=>{decade=decade===y?null:y;chosen=null;inspectedSummary=null;picker.value='';colorMap();save();};root.querySelector('.legend').append(b);});
+function clearSelection(){chosen=null;inspectedSummary=null;inspectedPoint=null;inspectedCell=null;inspectedTitle=null;picker.value='';summary();updateFrame();save();}
+function setDecade(year){decade=year;colorMap();updateFrame();save();}
+years.forEach((y,i)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-pressed',String(decade===y));b.setAttribute('aria-label',`${y}s: highlight construction decade`);const sw=document.createElement('span');sw.className='swatch';sw.style.background=colors[i];b.append(sw,`${y}s`);b.onclick=()=>setDecade(decade===y?null:y);root.querySelector('.legend').append(b);});
+root.querySelector('.color-ramp').style.background=`linear-gradient(to right,${colors.join(',')})`;
+root.querySelector('.clear-decade').onclick=()=>setDecade(null);
+root.querySelector('.clear-selection').onclick=clearSelection;
 data.historic.features.slice().sort((a,b)=>a.properties.name.localeCompare(b.properties.name)).forEach(f=>{const o=document.createElement('option');o.value=String(f.properties.id);o.textContent=`${f.properties.name} · ${f.properties.date}`;picker.append(o);});
 if(chosen!==null)picker.value=String(chosen);
-function setBuilding(f){inspectedSummary=null;chosen=f.properties.id;picker.value=String(chosen);summary();updateFrame();save();}
-function tooltip(event,text){tip.textContent=text;tip.style.display='block';const xy=d3.pointer(event,stage);tip.style.left=Math.max(8,Math.min(width-tip.offsetWidth-8,xy[0]+12))+'px';tip.style.top=Math.max(0,xy[1]-tip.offsetHeight-12)+'px';}
+function setBuilding(f){inspectedSummary=null;inspectedPoint=null;inspectedCell=null;inspectedTitle=null;chosen=f.properties.id;picker.value=String(chosen);summary();updateFrame();save();}
+function tooltip(event,text){if(event.pointerType==='touch')return;tip.textContent=text;tip.style.display='block';const xy=d3.pointer(event,stage);tip.style.left=Math.max(8,Math.min(width-tip.offsetWidth-8,xy[0]+12))+'px';tip.style.top=Math.max(8,Math.min(height-tip.offsetHeight-8,xy[1]-tip.offsetHeight-12))+'px';}
+function cellAt(point){return data.cells.find(d=>point[0]>=d[0]&&point[0]<d[0]+data.dx&&point[1]>=d[1]&&point[1]<d[1]+data.dy);}
+function inspectPoint(point){
+if(!d3.geoContains(data.boundary,point)){inspect('Outside the city boundary. Choose a colored residential area for construction dates.',point,null,'Selected location');return;}
+const cell=detailOn&&gridVisible(detailMode,current.k)?cellAt(point):null,a=areaOn?areaAt(point):null;
+if(cell){const nearby=areaAt(point);inspect(`${cell[3]} dated residential records · Most common: ${years[cell[2]]}s.${nearby?` Nearby median: ${nearby.decade}s (${nearby.n.toLocaleString()} records within 600 m).`:''}`,point,cell,'120 m residential grid');}
+else if(a)inspect(`Median: ${a.decade}s · ${a.n.toLocaleString()} residential records within approximately 600 m.`,point,null,'Typical nearby construction');
+else inspect('No visible residential summary here. Blank areas can include buildings without usable residential dates; check the map layers for hidden summaries.',point,null,'Selected location');
+}
 function labelRoads(){
-const k=current.k,candidates=[];
+const k=current.k,candidates=[],lo=current.invert([-100,-100]),hi=current.invert([width+100,height+100]);
 for(const s of streetLines){
+ if(s.maxX<lo[0]||s.minX>hi[0]||s.maxY<lo[1]||s.minY>hi[1])continue;
  if(s.type>40&&k<6)continue;if(s.type<=40&&k<1.7)continue;
- const pts=s.pts.map(p=>current.apply(p));let length=0;for(let i=1;i<pts.length;i++)length+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+ const pts=s.pts.map(p=>current.apply(p));let length=s.length*k;
  const textWidth=s.name.length*6.6;if(length<textWidth+18)continue;
  let walked=0,mid=null,angle=0;
- for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);if(walked+len>=length/2){const t=(length/2-walked)/len;mid=[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];angle=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;break;}walked+=len;}
- if(!mid||mid[0]<textWidth/2+8||mid[0]>width-textWidth/2-8||mid[1]<32||mid[1]>height-50)continue;
+ for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);if(walked+len>=length/2){const t=(length/2-walked)/(len||1);mid=[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];angle=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;break;}walked+=len;}
+ if(!mid||mid[0]<textWidth/2+8||mid[0]>width-textWidth/2-8||mid[1]<50||mid[1]>height-50)continue;
  if(angle>90)angle-=180;if(angle< -90)angle+=180;
  candidates.push({name:s.name,type:s.type,mid,angle,length,textWidth});
 }
@@ -108,61 +281,134 @@ for(const c of candidates){const angle=c.angle*Math.PI/180,bw=Math.abs(Math.cos(
 const [x,y]=c.mid,box=[x-bw/2,y-bh/2,x+bw/2,y+bh/2];
 if((used.get(c.name)||[]).some(p=>Math.hypot(x-p[0],y-p[1])<220)||occupied.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1]))continue;
 labels.push(c);occupied.push(box);if(!used.has(c.name))used.set(c.name,[]);used.get(c.name).push(c.mid);
-if(labels.length>(width<500?24:55))break;
+if(labels.length>=(width<500?18:45))break;
 }
-labelLayer.selectAll('text').data(labels).join('text').attr('class','street-name').attr('transform',d=>`translate(${d.mid[0]},${d.mid[1]}) rotate(${d.angle})`).attr('text-anchor','middle').attr('dy','-3').text(d=>d.name);
+labelLayer.selectAll('text.street-name').data(labels).join('text').attr('class','street-name').attr('transform',d=>`translate(${d.mid[0]},${d.mid[1]}) rotate(${d.angle})`).attr('text-anchor','middle').attr('dy','-3').text(d=>d.name);
+const capitol=data.historic.features.find(f=>f.properties.name==='Nebraska State Capitol');
+labelLayer.selectAll('text.anchor-label').data(current.k<1.7&&capitol?[capitol]:[]).join('text').attr('class','anchor-label').attr('x',f=>current.apply(projection(f.geometry.coordinates))[0]+20).attr('y',f=>current.apply(projection(f.geometry.coordinates))[1]+24).text('Downtown');
 }
+function clusterBuildings(features){
+const groups=[];
+for(const f of features){const [x,y]=current.apply(projection(f.geometry.coordinates));if(x< -22||y< -22||x>width+22||y>height+22)continue;
+const group=f.properties.id===chosen?null:groups.find(g=>!g.selected&&Math.hypot(g.x-x,g.y-y)<38);
+if(group){group.items.push(f);}else groups.push({x,y,items:[f],selected:f.properties.id===chosen});}
+return groups;
+}
+function activateGroup(group){
+if(group.items.length===1){setBuilding(group.items[0]);return;}
+if(current.k<70){goToPoint(projection.invert(current.invert([group.x,group.y])),Math.min(80,current.k*2.5));}
+else{renderPlaces(group.items.map(f=>({kind:'building',feature:f})),`${group.items.length} historic records at this location`);openPanel();}
+}
+function renderMarkers(){
+const features=data.historic.features.filter(f=>(historicOn||f.properties.id===chosen)&&markerMatches(f,decade,chosen));
+const groups=clusterBuildings(features);
+const nodes=markerLayer.selectAll('g.marker-group').data(groups,g=>g.items.map(f=>f.properties.id).join('-')).join(enter=>{const g=enter.append('g').attr('class','marker-group');g.append('circle').attr('class','marker-hit').attr('r',22).attr('fill','transparent');g.append('circle').attr('class','marker-halo').attr('fill','none');g.append('circle').attr('class','marker-face');g.append('text').attr('class','cluster-count').attr('text-anchor','middle').attr('dy','4');g.append('title');return g;});
+nodes.attr('transform',g=>`translate(${g.x},${g.y})`).attr('role','button').attr('tabindex',0).attr('aria-label',g=>g.items.length>1?`Zoom into ${g.items.length} historic buildings`:`${g.items[0].properties.name}, ${g.items[0].properties.date}. Select for details.`).on('click',(event,g)=>{event.stopPropagation();activateGroup(g);}).on('keydown',(event,g)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();activateGroup(g);}}).on('pointermove',(event,g)=>{event.stopPropagation();tooltip(event,g.items.length>1?`${g.items.length} historic buildings · Select to zoom in`:`${g.items[0].properties.name} · ${g.items[0].properties.date}`);}).on('pointerleave',()=>tip.style.display='none');
+nodes.select('.marker-face').attr('r',g=>g.items.length>1?14:g.selected?9:6).attr('fill',g=>g.items.length>1?'var(--foreground)':colors[(Math.floor(g.items[0].properties.year/10)*10-1860)/10]).attr('stroke',g=>g.selected?'var(--foreground)':'var(--background)').attr('stroke-width',2);
+nodes.select('.marker-halo').attr('r',g=>g.selected?15:0).attr('stroke','var(--map-accent)').attr('stroke-width',3);
+nodes.select('.cluster-count').text(g=>g.items.length>1?g.items.length:'');
+nodes.select('title').text(g=>g.items.length>1?`${g.items.length} historic buildings`:g.items[0].properties.name);
+const selected=groups.find(g=>g.selected);
+markerLayer.selectAll('text.selected-label').data(selected?[selected]:[]).join('text').attr('class','selected-label').attr('x',g=>Math.max(12,Math.min(width-12,g.x))).attr('y',g=>g.y<65?g.y+32:g.y-24).attr('text-anchor',g=>g.x<width*.25?'start':g.x>width*.75?'end':'middle').attr('pointer-events','none').text(g=>g.items[0].properties.name.length>36?g.items[0].properties.name.slice(0,33)+'…':g.items[0].properties.name);
+return groups.length;
+}
+function cellPath(d){const a=projection([d[0],d[1]]),b=projection([d[0]+data.dx,d[1]+data.dy]);return `M${a[0]},${a[1]}H${b[0]}V${b[1]}H${a[0]}Z`;}
 function updateFrame(){
 if(!mapLayer)return;mapLayer.attr('transform',current.toString());
-pathCells.attr('transform',d=>{const mid=projection([d[0]+data.dx/2,d[1]+data.dy/2]),factor=areaOn&&current.k<5?.6:.96;return `translate(${mid[0]},${mid[1]}) scale(${factor}) translate(${-mid[0]},${-mid[1]})`;});
+const factor=areaOn&&current.k<5?.6:.96;
+if(factor!==lastCellFactor){pathCells.attr('transform',d=>{const mid=projection([d[0]+data.dx/2,d[1]+data.dy/2]);return `translate(${mid[0]},${mid[1]}) scale(${factor}) translate(${-mid[0]},${-mid[1]})`;});lastCellFactor=factor;}
+const gridOn=detailOn&&gridVisible(detailMode,current.k);cellLayer.attr('display',gridOn?null:'none');
 mapLayer.selectAll('.local-roads').attr('visibility',current.k>=4?'visible':'hidden');
-markerLayer.selectAll('circle').attr('cx',f=>current.apply(projection(f.geometry.coordinates))[0]).attr('cy',f=>current.apply(projection(f.geometry.coordinates))[1]).attr('r',f=>f.properties.id===chosen?7:current.k>=5?4.5:3.5).attr('stroke-width',f=>f.properties.id===chosen?2:1);
-labelRoads();
+const groups=renderMarkers();labelRoads();
+selectionLayer.selectAll('*').remove();
+if(inspectedPoint){if(inspectedCell&&gridOn)selectionLayer.append('path').attr('d',cellPath(inspectedCell)).attr('transform',current.toString()).attr('fill','none').attr('stroke','var(--foreground)').attr('stroke-width',3).attr('vector-effect','non-scaling-stroke');
+const p=current.apply(projection(inspectedPoint));selectionLayer.append('circle').attr('cx',p[0]).attr('cy',p[1]).attr('r',10).attr('fill','none').attr('stroke','var(--map-accent)').attr('stroke-width',3);selectionLayer.append('circle').attr('cx',p[0]).attr('cy',p[1]).attr('r',3).attr('fill','var(--foreground)');}
 const center=projection.invert(current.invert([width/2,height/2])),mpp=111320*Math.cos(center[1]*Math.PI/180)*(projection.invert([width/2+1,height/2])[0]-projection.invert([width/2,height/2])[0])/current.k;
 const target=mpp*Math.min(100,width*.22),choices=[20,50,100,200,500,1000,2000,5000,10000],meters=choices.filter(v=>v<=target).pop()||10,len=meters/mpp,sy=height-14;
 scaleLayer.select('path').attr('d',`M18,${sy-5}v5h${len}v-5`);scaleLayer.select('text').attr('x',18+len/2).attr('y',sy-9).text(meters>=1000?`${meters/1000} km`:`${meters} m`);
 root.querySelector('.zoom-level').textContent=`${current.k.toFixed(current.k<10?1:0)}×`;
+root.querySelector('.layer-status').textContent=`${areaOn?'Area medians visible':'Area medians hidden'} · ${gridOn?'120 m grid visible':detailMode==='auto'?'Grid appears at 4× zoom':'120 m grid hidden'} · ${historicOn?`${groups} historic marker groups in view`:'Historic layer hidden'}`;
+root.querySelector('[data-zoom="out"]').disabled=current.k<=1;root.querySelector('[data-zoom="in"]').disabled=current.k>=80;
 }
-const zoom=d3.zoom().scaleExtent([1,80]).on('zoom',event=>{current=event.transform;tip.style.display='none';if(!frame)frame=requestAnimationFrame(()=>{frame=0;updateFrame();});}).on('end',event=>{if(event.sourceEvent)save();});
+const zoom=d3.zoom().scaleExtent([1,80]).touchable(()=>touchExplore).filter(event=>event.type==='wheel'?(event.ctrlKey||event.metaKey)&&!event.button:event.type.startsWith('touch')?touchExplore:!event.button).on('zoom',event=>{current=event.transform;tip.style.display='none';if(!frame)frame=requestAnimationFrame(()=>{frame=0;updateFrame();});}).on('end',event=>{if(event.sourceEvent)save();});
 function goToPoint(point,k){const xy=projection(point);svg.call(zoom.transform,d3.zoomIdentity.translate(width/2-k*xy[0],height/2-k*xy[1]).scale(k));updateFrame();save();}
 function draw(){
-const w=stage.clientWidth;if(w===width&&initialized)return;
+const w=Math.round(stage.clientWidth),h=Math.round(stage.clientHeight);if(w<1||h<1||(w===width&&h===height&&initialized))return;
 const prev=initialized?projection.invert(current.invert([width/2,height/2])):null,oldk=current.k;
-width=w;height=Math.max(430,Math.min(670,width*1.04));svg.attr('viewBox',`0 0 ${width} ${height}`).attr('height',height);svg.selectAll('*').remove();
-projection=d3.geoMercator().fitExtent([[14,24],[width-14,height-32]],data.boundary);geo=d3.geoPath(projection);
+width=w;height=h;svg.attr('viewBox',`0 0 ${width} ${height}`);svg.selectAll('*').remove();lastCellFactor=null;
+projection=d3.geoMercator().fitExtent([[16,42],[width-16,height-36]],data.boundary);geo=d3.geoPath(projection);
 svg.append('defs').append('clipPath').attr('id','lincoln-viewport').append('rect').attr('width',width).attr('height',height);
 svg.select('defs').append('clipPath').attr('id','lincoln-city-age-clip').append('path').attr('d',geo(data.boundary));
 const viewport=svg.append('g').attr('clip-path','url(#lincoln-viewport)');mapLayer=viewport.append('g').attr('class','map-geography');
-mapLayer.append('path').attr('d',geo(data.boundary)).attr('fill','var(--muted)').attr('fill-opacity',.42).attr('stroke','var(--border)').attr('vector-effect','non-scaling-stroke');
-areaLayer=mapLayer.append('g').attr('class','area-age').attr('clip-path','url(#lincoln-city-age-clip)');
-areaLayer.selectAll('path').data(areaShapes).join('path').attr('d',geo).on('pointermove',(event,f)=>{const point=projection.invert(current.invert(d3.pointer(event,svg.node()))),a=areaAt(point);if(a)tooltip(event,`Typical nearby construction: ${a.decade}s · Median of ${a.n.toLocaleString()} residential records within 600 m`);}).on('pointerleave',()=>tip.style.display='none').on('click',(event,f)=>{inspect(`Typical nearby construction: ${f.properties.year}s. Median residential decade within 600 m; approximate area pattern.`);});
-pathCells=mapLayer.append('g').attr('class','parcel-detail').selectAll('path').data(data.cells).join('path').attr('d',d=>{const a=projection([d[0],d[1]]),b=projection([d[0]+data.dx,d[1]+data.dy]);return `M${a[0]},${a[1]}H${b[0]}V${b[1]}H${a[0]}Z`;}).on('pointermove',(event,d)=>{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);tooltip(event,`${d[3]} dated residential parcels · Most common: ${years[d[2]]}s${a?` · Nearby median: ${a.decade}s`:''}`);}).on('pointerleave',()=>tip.style.display='none').on('click',(event,d)=>{const a=areaAt([d[0]+data.dx/2,d[1]+data.dy/2]);inspect(`120 m area: ${d[3]} dated residential parcels; most common ${years[d[2]]}s.${a?` Surrounding 600 m: median ${a.decade}s (${a.n.toLocaleString()} records).`:''}`);});
-for(const local of [true,false])mapLayer.append('path').attr('class',local?'local-roads':'major-roads').attr('d',geo({type:'FeatureCollection',features:streets.filter(f=>(f.properties.type>40)===local)})).attr('fill','none').attr('stroke','var(--foreground)').attr('stroke-opacity',local?.28:.4).attr('stroke-width',local?.6:.8).attr('vector-effect','non-scaling-stroke').attr('pointer-events','none');
-streetLines=streets.filter(f=>f.properties.name).map(f=>({name:f.properties.name,type:f.properties.type,pts:f.geometry.coordinates.map(projection)}));
-markerLayer=viewport.append('g').attr('class','historic-markers');markerLayer.selectAll('circle').data(data.historic.features).join('circle').attr('stroke','var(--foreground)').attr('class','cursor-interaction').on('pointermove',(event,f)=>tooltip(event,`${f.properties.name} · ${f.properties.date} · Historic preservation`)).on('pointerleave',()=>tip.style.display='none').on('click',(event,f)=>setBuilding(f));
+mapLayer.append('path').attr('d',geo(data.boundary)).attr('fill','var(--map-land)').attr('stroke','var(--map-border)').attr('vector-effect','non-scaling-stroke');
+areaLayer=mapLayer.append('g').attr('class','area-age').attr('clip-path','url(#lincoln-city-age-clip)').attr('pointer-events','none');
+areaLayer.selectAll('path').data(areaShapes).join('path').attr('d',geo);
+cellLayer=mapLayer.append('g').attr('class','parcel-detail').attr('pointer-events','none');pathCells=cellLayer.selectAll('path').data(data.cells).join('path').attr('d',cellPath);
+for(const local of [true,false])mapLayer.append('path').attr('class',local?'local-roads':'major-roads').attr('d',geo({type:'FeatureCollection',features:streets.filter(f=>(f.properties.type>40)===local)})).attr('fill','none').attr('stroke','var(--foreground)').attr('stroke-opacity',local?.2:.32).attr('stroke-width',local?.6:.8).attr('vector-effect','non-scaling-stroke').attr('pointer-events','none');
+streetLines=streets.filter(f=>f.properties.name).map(f=>{const pts=f.geometry.coordinates.map(projection);return {name:f.properties.name,type:f.properties.type,pts,minX:d3.min(pts,p=>p[0]),maxX:d3.max(pts,p=>p[0]),minY:d3.min(pts,p=>p[1]),maxY:d3.max(pts,p=>p[1]),length:d3.sum(pts.slice(1).map((p,i)=>Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1])))}});
 labelLayer=viewport.append('g').attr('class','street-labels').attr('pointer-events','none');
+markerLayer=viewport.append('g').attr('class','historic-markers');
+selectionLayer=viewport.append('g').attr('class','selected-location').attr('pointer-events','none');
 scaleLayer=svg.append('g').attr('pointer-events','none');scaleLayer.append('path').attr('fill','none').attr('stroke','var(--foreground)');scaleLayer.append('text').attr('text-anchor','middle');
 svg.append('text').attr('x',width-16).attr('y',22).attr('text-anchor','end').attr('pointer-events','none').text('N ↑');
+svg.append('path').attr('class','map-center').attr('d',`M${width/2-9},${height/2}h18M${width/2},${height/2-9}v18`).attr('stroke','var(--foreground)').attr('stroke-width',2);
 zoom.extent([[0,0],[width,height]]).translateExtent([[-width*.12,-height*.12],[width*1.12,height*1.12]]);svg.call(zoom);
 if(prev){const xy=projection(prev);current=d3.zoomIdentity.translate(width/2-oldk*xy[0],height/2-oldk*xy[1]).scale(oldk);}
 else if(saved?.privateContent?.zoom){current=restoreZoom(saved.privateContent.zoom);}
-svg.call(zoom.transform,current);colorMap();updateFrame();initialized=true;
+svg.call(zoom.transform,current);colorMap();updateFrame();initialized=true;root.querySelector('.map-loading').hidden=true;
 }
+function setTouchMode(on){touchExplore=on;stage.dataset.touchExplore=String(on);svg.on('touchstart.zoom touchmove.zoom touchend.zoom touchcancel.zoom',null).call(zoom);const b=root.querySelector('.touch-mode');b.setAttribute('aria-pressed',String(on));b.textContent=on?'Done moving':'Move map';root.querySelector('.map-hint').textContent=on?'Drag or pinch to move · Done moving resumes page scrolling':mobile.matches?'Tap an area for details · Move map to pan or pinch':'Select an area to learn more · Ctrl / ⌘ + scroll to zoom';}
+svg.on('click.inspect',event=>{if(event.defaultPrevented)return;inspectPoint(projection.invert(current.invert(d3.pointer(event,svg.node()))));}).on('pointermove.inspect',event=>{if(event.buttons||event.pointerType==='touch')return;const point=projection.invert(current.invert(d3.pointer(event,svg.node())));const cell=detailOn&&gridVisible(detailMode,current.k)?cellAt(point):null,a=areaOn?areaAt(point):null;if(cell)tooltip(event,`${cell[3]} residential records · Most common ${years[cell[2]]}s`);else if(a)tooltip(event,`Nearby median ${a.decade}s · ${a.n.toLocaleString()} records within 600 m`);else tip.style.display='none';}).on('pointerleave.inspect',()=>tip.style.display='none');
 root.querySelector('[data-zoom="in"]').onclick=()=>{svg.call(zoom.scaleBy,1.6);updateFrame();save();};
 root.querySelector('[data-zoom="out"]').onclick=()=>{svg.call(zoom.scaleBy,1/1.6);updateFrame();save();};
 root.querySelector('[data-view="city"]').onclick=()=>{svg.call(zoom.transform,d3.zoomIdentity);updateFrame();save();};
 root.querySelector('[data-view="downtown"]').onclick=()=>{
 const anchors=data.historic.features.filter(f=>[1,13,14,23,65,66,106].includes(f.properties.id)).map(f=>projection(f.geometry.coordinates));
-const x=d3.extent(anchors,p=>p[0]),y=d3.extent(anchors,p=>p[1]),k=Math.min(60,.75*Math.min(width/(x[1]-x[0]),height/(y[1]-y[0]))),cx=(x[0]+x[1])/2,cy=(y[0]+y[1])/2;
+const x=d3.extent(anchors,p=>p[0]),y=d3.extent(anchors,p=>p[1]),k=Math.min(60,.7*Math.min(width/(x[1]-x[0]),height/(y[1]-y[0]))),cx=(x[0]+x[1])/2,cy=(y[0]+y[1])/2;
 svg.call(zoom.transform,d3.zoomIdentity.translate(width/2-k*cx,height/2-k*cy).scale(k));updateFrame();save();
 };
-picker.onchange=()=>{const f=data.historic.features.find(f=>String(f.properties.id)===picker.value);if(f){setBuilding(f);goToPoint(f.geometry.coordinates,Math.max(12,current.k));}else{inspectedSummary=null;chosen=null;summary();updateFrame();save();}};
-const areaToggle=root.querySelector('#lincoln-area-toggle'),detailToggle=root.querySelector('#lincoln-detail-toggle');
-areaToggle.checked=areaOn;detailToggle.checked=detailOn;
+stage.addEventListener('keydown',event=>{if(event.target!==stage)return;const pan={ArrowLeft:[70,0],ArrowRight:[-70,0],ArrowUp:[0,70],ArrowDown:[0,-70]}[event.key];if(pan){event.preventDefault();svg.call(zoom.translateBy,pan[0]/current.k,pan[1]/current.k);updateFrame();save();}else if(['+','=','-','Home','Enter','Escape'].includes(event.key)){event.preventDefault();if(event.key==='Enter')inspectPoint(projection.invert(current.invert([width/2,height/2])));else if(event.key==='Home')root.querySelector('[data-view="city"]').click();else if(event.key==='Escape')setTouchMode(false);else{svg.call(zoom.scaleBy,event.key==='-'?1/1.6:1.6);updateFrame();save();}}});
+root.querySelector('.touch-mode').onclick=()=>setTouchMode(!touchExplore);
+root.addEventListener('keydown',event=>{if(event.key==='Escape'&&touchExplore&&!panel.matches(':modal')){setTouchMode(false);stage.focus({preventScroll:true});}});
+root.querySelector('.expand-map').onclick=()=>{const expanded=root.classList.toggle('map-expanded');root.querySelector('.expand-map').textContent=expanded?'Restore view':'Expand map';root.querySelector('.expand-map').setAttribute('aria-pressed',String(expanded));syncPanel();};
+function chooseBuilding(f){setBuilding(f);goToPoint(f.geometry.coordinates,Math.max(12,current.k));if(mobile.matches||root.classList.contains('map-expanded'))closePanel();}
+picker.onchange=()=>{const f=data.historic.features.find(f=>String(f.properties.id)===picker.value);if(f)chooseBuilding(f);else clearSelection();};
+const search=root.querySelector('#place-search');
+function renderPlaces(results,status){
+const list=root.querySelector('.place-results');list.replaceChildren();root.querySelector('.search-status').textContent=status;
+for(const result of results.slice(0,12)){const li=document.createElement('li'),b=document.createElement('button');b.type='button';const small=document.createElement('small');if(result.kind==='building'){const f=result.feature;b.dataset.building=String(f.properties.id);b.append(document.createTextNode(f.properties.name));small.textContent=`Historic building · ${f.properties.date}`;b.onclick=()=>chooseBuilding(f);}else{b.append(document.createTextNode(result.street.name));small.textContent='Street · inspect nearby residential ages';b.onclick=()=>{const feature={type:'FeatureCollection',features:result.street.features},point=d3.geoCentroid(feature);inspect(`Named street from city GIS. Pan or inspect nearby residential areas for construction decades.`,point,null,result.street.name);goToPoint(point,Math.max(6,current.k));if(mobile.matches||root.classList.contains('map-expanded'))closePanel();};}b.append(small);li.append(b);list.append(li);}
+summary();
+}
+function searchPlaces(){
+const q=search.value.trim().toLocaleLowerCase();
+if(!q){renderPlaces([],'Try State Capitol or O St.');return;}
+const buildings=data.historic.features.filter(f=>f.properties.name.toLocaleLowerCase().includes(q)).map(f=>({kind:'building',feature:f}));
+const roads=streetIndex.filter(s=>s.name.toLocaleLowerCase().includes(q)).map(s=>({kind:'street',street:s}));const results=[...buildings,...roads];
+renderPlaces(results,results.length?`${results.length} matching ${results.length===1?'place':'places'}${results.length>12?' · first 12 shown; refine your search':''}`:'No matching buildings or streets. Try a shorter name. Residential addresses are not included.');
+}
+search.oninput=searchPlaces;search.addEventListener('keydown',event=>{if(event.key==='ArrowDown'){const b=root.querySelector('.place-results button');if(b){event.preventDefault();b.focus();}}else if(event.key==='Enter'){const b=root.querySelector('.place-results button');if(b){event.preventDefault();b.click();}}});searchPlaces();
+const areaToggle=root.querySelector('#lincoln-area-toggle'),detailSelect=root.querySelector('#lincoln-detail-mode'),historicToggle=root.querySelector('#lincoln-historic-toggle');
+areaToggle.checked=areaOn;detailSelect.value=detailMode;historicToggle.checked=historicOn;
 areaToggle.onchange=()=>{areaOn=areaToggle.checked;colorMap();updateFrame();save();};
-detailToggle.onchange=()=>{detailOn=detailToggle.checked;colorMap();save();};
-window.addEventListener('openai:set_globals',event=>{const state=event.detail?.globals?.widgetState;if(!state)return;const nextDecade=years.includes(state.modelContent?.decade)?state.modelContent.decade:null,nextChosen=state.modelContent?.historicBuilding??null;if(nextDecade!==decade||nextChosen!==chosen)inspectedSummary=null;decade=nextDecade;chosen=nextChosen;areaOn=state.modelContent?.areaAge!==false;detailOn=state.modelContent?.parcelDetail!==false;areaToggle.checked=areaOn;detailToggle.checked=detailOn;picker.value=chosen===null?'':String(chosen);colorMap();updateFrame();});
-new ResizeObserver(draw).observe(stage);
-}catch(error){root.querySelector('.selection').textContent='The map could not load. Please reopen it.';console.error(error);}
+detailSelect.onchange=()=>{detailMode=detailSelect.value;detailOn=detailMode!=='off';updateFrame();save();};
+historicToggle.onchange=()=>{historicOn=historicToggle.checked;summary();updateFrame();save();};
+function applyState(state){
+if(!state)return;const nextDecade=years.includes(state.modelContent?.decade)?state.modelContent.decade:null,nextChosen=data.historic.features.some(f=>f.properties.id===state.modelContent?.historicBuilding)?state.modelContent.historicBuilding:null;
+const nextArea=state.modelContent?.areaAge!==false,nextDetail=state.modelContent?.parcelDetail!==false,nextHistoric=state.modelContent?.historicMarkers!==false,nextMode=['auto','on','off'].includes(state.modelContent?.gridMode)?state.modelContent.gridMode:nextDetail?'auto':'off';
+// The bridge echoes our writes synchronously. Avoid repainting the full map on every zoom save.
+if(nextDecade===decade&&nextChosen===chosen&&nextArea===areaOn&&nextDetail===detailOn&&nextHistoric===historicOn&&nextMode===detailMode)return;
+if(nextChosen!==chosen){inspectedSummary=null;inspectedPoint=null;inspectedCell=null;inspectedTitle=null;}decade=nextDecade;chosen=nextChosen;areaOn=state.modelContent?.areaAge!==false;detailOn=state.modelContent?.parcelDetail!==false;historicOn=state.modelContent?.historicMarkers!==false;detailMode=['auto','on','off'].includes(state.modelContent?.gridMode)?state.modelContent.gridMode:detailOn?'auto':'off';areaToggle.checked=areaOn;detailSelect.value=detailMode;historicToggle.checked=historicOn;picker.value=chosen===null?'':String(chosen);colorMap();updateFrame();
+}
+window.addEventListener('openai:set_globals',event=>applyState(event.detail?.globals?.widgetState));
+setTouchMode(false);mobile.addEventListener('change',()=>setTouchMode(false));new ResizeObserver(draw).observe(stage);
+}catch(error){
+root.querySelector('.loading-title').textContent='The interactive map could not load';
+root.querySelector('.loading-description').textContent=error.message||'Try reloading the map. Sources and methodology are still available in Search & filters.';
+root.querySelector('.retry-map').hidden=false;
+root.querySelectorAll('.map-toolbar button:not(.open-panel),.controls-panel input,.controls-panel select').forEach(el=>el.disabled=true);
+root.querySelector('.search-status').textContent='Interactive search is unavailable. Sources & methodology remain available below.';
+root.querySelector('.selection').textContent='87,356 dated residential parcels and 170 historic records. Explore the sources and methodology for coverage and limitations.';
+console.error(error);
+}
 })();
 </script>
